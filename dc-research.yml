@@ -1,0 +1,106 @@
+version: '3.1'
+services:
+  db:
+    image: postgres:14.2-alpine
+    volumes:
+      - /opt/docker/research/volumes/pg-data-research:/var/lib/postgresql/data
+    networks:
+      database:
+        aliases:
+          - db
+    ports:
+      - '5438:5432'
+    deploy:
+      placement:
+        constraints:
+          - node.labels.database == true
+      replicas: 1
+      restart_policy:
+        condition: any
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/research_pg_pass
+      POSTGRES_USER_FILE: /run/secrets/research_pg_user
+      POSTGRES_DB: research
+    secrets:
+      - research_pg_user
+      - research_pg_pass
+
+  back:
+    image: cincoders/research-back:latest
+    volumes:
+      - /opt/docker/research/volumes/xmls:/xmls
+    networks:
+      frontend:
+        aliases:
+          - back
+      database:
+        aliases:
+          - back
+      proxy-net:
+        aliases:
+          - research-back
+    deploy:
+      placement:
+        constraints:
+          - node.labels.frontend == true
+      replicas: 1
+      restart_policy:
+        condition: any
+    secrets:
+      - research_back_env
+      - cert
+      - cert_key
+      - cert_intermediate
+
+  front:
+    image: cincoders/research-front:latest
+    networks:
+      frontend:
+        aliases:
+          - front
+      proxy-net:
+        aliases:
+          - research-front
+    deploy:
+      placement:
+        constraints:
+          - node.labels.frontend == true
+      replicas: 1
+      restart_policy:
+        condition: any
+    environment:
+      RESEARCH_APIURL_FILE: /run/secrets/research_apiurl
+      HR_APIURL_FILE: /run/secrets/hr_apiurl
+      KEYCLOAK_PUBLIC_JSON_FILE: /run/secrets/research_keycloak_public_json
+    secrets:
+      - research_apiurl
+      - hr_apiurl
+      - research_keycloak_public_json
+      - cert
+      - cert_key
+
+secrets:
+  research_pg_pass:
+    external: true
+  research_pg_user:
+    external: true
+  research_back_env:
+    external: true
+  research_apiurl:
+    external: true
+  research_keycloak_public_json:
+    external: true
+  hr_apiurl:
+    external: true
+  cert:
+    external: true
+  cert_key:
+    external: true
+  cert_intermediate:
+    external: true
+
+networks:
+  frontend:
+  database:
+  proxy-net:
+    external: true

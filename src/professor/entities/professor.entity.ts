@@ -1,0 +1,49 @@
+import { ApiProperty, ApiTags } from '@nestjs/swagger';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Advisee } from './advisee.entity';
+import { JournalPublication } from './journal-publication.entity';
+import { ConferencePublication } from './conference-publication.entity';
+import { Project } from './projects.entity';
+
+@ApiTags('Professor')
+@Entity({ name: 'professor' })
+export class Professor {
+  @ApiProperty({ name: 'id', type: Number })
+  @PrimaryGeneratedColumn('identity', {
+    name: 'id',
+    generatedIdentity: 'BY DEFAULT',
+  })
+  id!: number;
+
+  @ApiProperty({ name: 'identifier', type: String })
+  @Column({ name: 'identifier', length: 32, unique: true, nullable: true })
+  identifier?: string;
+
+  @ApiProperty({ name: 'name', type: String })
+  @Column({ name: 'name', length: 100 })
+  name!: string;
+
+  @OneToMany(
+    () => JournalPublication,
+    (journalPublication) => journalPublication.professor,
+    { cascade: true },
+  )
+  journalPublication!: JournalPublication[];
+
+  @OneToMany(
+    () => ConferencePublication,
+    (conference) => conference.professor,
+    {
+      cascade: true,
+    },
+  )
+  conferencePublications!: ConferencePublication[];
+
+  @OneToMany(() => Advisee, (advisee) => advisee.professor, { cascade: true })
+  advisees!: Advisee[];
+
+  @OneToMany(() => Project, (project) => project.professor, {
+    cascade: true,
+  })
+  projects!: Project[];
+}
