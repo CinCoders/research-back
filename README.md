@@ -1,8 +1,8 @@
-# Research Dashboard
+# Research Dashboard API
 
-The Research Dashboard is a system built to display informations extracted from the Lattes curriculum of professors.
+The Research Dashboard API is a versatile tool that not only extracts information from professors' Lattes curriculum but also qualifies and presents the extracted data in a more convenient and summarized manner. This unique feature allows for in-depth analysis and study of large groups of professors, with a specific focus on their publications, enabling researchers to efficiently assess and evaluate their academic contributions.
 
-## Technologies used
+## Main Technologies used
 
 - [NestJS](https://nestjs.com)
 - [Postgres](https://www.postgresql.org)

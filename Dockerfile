@@ -1,15 +1,11 @@
 # Building app
 FROM node:16 as build
-
 USER node
 RUN mkdir /home/node/app
 WORKDIR /home/node/app
 COPY package*.json ./
-
 RUN npm ci
-
 COPY . .
-
 RUN npm run build
 
 # Using the build
