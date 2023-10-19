@@ -152,6 +152,7 @@ export class ImportXmlService {
     } else {
       try {
         await rename(file.path, this.XML_PATH + '/' + file.originalname);
+        file.path = this.XML_PATH + '/' + file.originalname;
       } catch (error) {
         if (error instanceof Error) {
           throw Error(
@@ -1163,10 +1164,13 @@ export class ImportXmlService {
             // se o professor não existir, criamos, se existir podemos usá-lo
             professorDto = this.getProfessorData(json);
             // renomear com o lattes do professor
+            console.log(files[i].path);
+            console.log(this.XML_PATH + '/' + professorDto.identifier + '.xml');
             await rename(
               files[i].path,
               this.XML_PATH + '/' + professorDto.identifier + '.xml',
             );
+
             const filename = professorDto.identifier + '.xml';
 
             this.updateXMLStatus(
