@@ -17,9 +17,9 @@ async function bootstrap() {
       cert: fs.readFileSync(
         path.join(__dirname, '..', './certs/certificate.crt'),
       ),
-      ca: fs.readFileSync(
-        path.join(__dirname, '..', './certs/intermediate.pem'),
-      ),
+      // ca: fs.readFileSync(
+      //   path.join(__dirname, '..', './certs/intermediate.pem'),
+      // ),
     };
     options = { ...options, httpsOptions };
   }
