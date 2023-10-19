@@ -1164,8 +1164,7 @@ export class ImportXmlService {
             // se o professor não existir, criamos, se existir podemos usá-lo
             professorDto = this.getProfessorData(json);
             // renomear com o lattes do professor
-            console.log(files[i].path);
-            console.log(this.XML_PATH + '/' + professorDto.identifier + '.xml');
+
             await rename(
               files[i].path,
               this.XML_PATH + '/' + professorDto.identifier + '.xml',
