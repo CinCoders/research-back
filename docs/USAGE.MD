@@ -17,3 +17,7 @@ Then, you aditionally will put the client_id of your Keycloak realm (there's no 
 ### Being enabled to test the API
 
 After that, you will have the authorization to make requests and check the responses.
+
+## Checking the downloaded XML paths
+
+Update the current XML_PATH to a folder inside downloadedFiles
