@@ -20,4 +20,4 @@ After that, you will have the authorization to make requests and check the respo
 
 ## Checking the downloaded XML paths
 
-Update the current XML_PATH to a folder inside downloadedFiles
+Update the current XML_PATH to the desired folder
