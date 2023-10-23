@@ -9,18 +9,26 @@ import { AppDataSource } from './app.datasource';
 async function bootstrap() {
   let options = {};
   if (process.env.NODE_ENV === 'production') {
-    let httpsOptions = {};
-    httpsOptions = {
-      key: fs.readFileSync(
-        path.join(__dirname, '..', './certs/certificate.key'),
-      ),
-      cert: fs.readFileSync(
-        path.join(__dirname, '..', './certs/certificate.crt'),
-      ),
-      ca: fs.readFileSync(
-        path.join(__dirname, '..', './certs/intermediate.pem'),
-      ),
-    };
+    const httpsOptions: {
+      key?: Buffer | null;
+      cert?: Buffer | null;
+      ca?: Buffer | null;
+    } = {};
+
+    httpsOptions.key = fs.readFileSync(
+      path.join(__dirname, '..', './certs/certificate.key'),
+    );
+    httpsOptions.cert = fs.readFileSync(
+      path.join(__dirname, '..', './certs/certificate.crt'),
+    );
+    const caCertificatePath = path.join(
+      __dirname,
+      '..',
+      './certs/intermediate.pem',
+    );
+    if (fs.existsSync(caCertificatePath)) {
+      httpsOptions.ca = fs.readFileSync(caCertificatePath);
+    }
     options = { ...options, httpsOptions };
   }
 
