@@ -97,6 +97,32 @@ export class ImportXmlService {
     };
   }
 
+  async reprocessXML(id: string) {
+    const importXml = await AppDataSource.createQueryBuilder()
+      .select('i')
+      .from(ImportXml, 'i')
+      .where('i.professor_name=:id', { id: id })
+      .getOne();
+
+    if (!importXml) throw Error('XML not found');
+
+    await this.updateXMLStatus(
+      importXml.name,
+      Status.LOADING,
+      importXml.professorName,
+    );
+
+    const file = {
+      filename: importXml.name,
+      originalname: importXml.name,
+      path: this.XML_PATH + '/' + importXml.name,
+    };
+
+    // await this.importXML(file, importXml.user);
+
+    return importXml;
+  }
+
   async findXMLDocument(file: Express.Multer.File) {
     return AppDataSource.createQueryBuilder()
       .select('i')
