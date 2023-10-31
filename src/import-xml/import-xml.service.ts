@@ -132,7 +132,8 @@ export class ImportXmlService {
   }
 
   async updateXMLStatus(
-    filename: string,
+    id: string,
+    filename: string | undefined,
     status: string,
     professorName: string | undefined,
   ) {
@@ -143,7 +144,11 @@ export class ImportXmlService {
         break;
       }
       case Status.PROGRESS: {
-        importXml = { status: status, professorName: professorName };
+        importXml = {
+          status: status,
+          professorName: professorName,
+          name: filename,
+        };
         break;
       }
       case Status.CONCLUDED:
@@ -155,7 +160,7 @@ export class ImportXmlService {
     await AppDataSource.createQueryBuilder()
       .update(ImportXml)
       .set(importXml)
-      .where('id=:name', { name: filename })
+      .where('id=:name', { name: id })
       .execute();
   }
 
@@ -172,10 +177,8 @@ export class ImportXmlService {
       );
     } else {
       try {
-        await rename(
-          file.path,
-          this.XML_PATH + '/' + file.originalname.split('.')[0],
-        );
+        await rename(file.path, this.XML_PATH + '/' + file.originalname);
+        file.path = this.XML_PATH + '/' + file.originalname;
       } catch (error) {
         if (error instanceof Error) {
           throw Error(
@@ -185,10 +188,9 @@ export class ImportXmlService {
         throw Error('The file could not be renamed.');
       }
 
-      xmlData = await readFile(
-        this.XML_PATH + '/' + file.originalname.split('.')[0],
-        { encoding: 'latin1' },
-      );
+      xmlData = await readFile(this.XML_PATH + '/' + file.originalname, {
+        encoding: 'latin1',
+      });
     }
     const object = await parseStringPromise(xmlData);
     return JSON.parse(JSON.stringify(object));
@@ -1078,6 +1080,9 @@ export class ImportXmlService {
         this.XML_PATH + '/' + 'curriculo.xml',
         this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml',
       );
+      unlink(zipPath);
+      file.path =
+        this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml';
     } catch (err) {
       await logErrorToDatabase(err, EntityType.UNZIP, undefined);
     }
@@ -1125,6 +1130,8 @@ export class ImportXmlService {
         const importXml = new ImportXml();
         importXml.id = files[i].filename;
         importXml.name = files[i].originalname;
+        // importXml.originalfilename = files[i].originalname;
+        // importXml.filename = '';
         importXml.user = username;
         importXml.status = Status.PENDING;
         importXml.startedAt = undefined;
@@ -1165,7 +1172,12 @@ export class ImportXmlService {
       for (let i = 0; i < files.length; i++) {
         await queryRunner.startTransaction();
         try {
-          this.updateXMLStatus(files[i].filename, Status.LOADING, undefined);
+          this.updateXMLStatus(
+            files[i].filename,
+            undefined,
+            Status.LOADING,
+            undefined,
+          );
           let importXmlLog = this.createImportLog(
             files[i],
             username,
@@ -1177,8 +1189,18 @@ export class ImportXmlService {
 
             // se o professor não existir, criamos, se existir podemos usá-lo
             professorDto = this.getProfessorData(json);
+            // renomear com o lattes do professor
+
+            await rename(
+              files[i].path,
+              this.XML_PATH + '/' + professorDto.identifier + '.xml',
+            );
+
+            const filename = professorDto.identifier + '.xml';
+
             this.updateXMLStatus(
               files[i].filename,
+              filename,
               Status.PROGRESS,
               professorDto.name,
             );
@@ -1229,6 +1251,7 @@ export class ImportXmlService {
             importXmlLog.message += 'SUCCESS';
             this.updateXMLStatus(
               files[i].filename,
+              filename,
               Status.CONCLUDED,
               professorDto.name,
             );
@@ -1236,6 +1259,7 @@ export class ImportXmlService {
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(
               files[i].filename,
+              undefined,
               Status.NOT_IMPORTED,
               professorDto?.name,
             );
