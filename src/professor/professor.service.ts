@@ -84,7 +84,7 @@ export class ProfessorService {
 
     const queryRunner = AppDataSource.createQueryRunner();
 
-    const result = queryRunner.query(
+    const result = await queryRunner.query(
       `
       ${
         journalPublications

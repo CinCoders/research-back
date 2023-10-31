@@ -1248,7 +1248,7 @@ export class ImportXmlService {
         }
       }
     } finally {
-      queryRunner.release();
+      await queryRunner.release();
     }
   }
 }
