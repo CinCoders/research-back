@@ -90,7 +90,7 @@ export class ConferencePublicationService {
                 .into(ConferencePublication)
                 .values(conferencePublication)
                 .orUpdate(
-                  ['title', 'proceedings', 'qualis', 'conference_id'],
+                  ['title', 'proceedings', 'qualis', 'conference_id', 'is_top'],
                   ['id'],
                 )
                 .execute();
