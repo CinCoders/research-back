@@ -23,6 +23,7 @@ import { Curriculum } from './curriculum.enum';
 import logErrorToDatabase from 'src/utils/exception-filters/log-error';
 import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
 import { extname } from 'path';
+import * as fs from 'fs';
 import extract from 'extract-zip';
 import { QueryRunner } from 'typeorm';
 import { Log } from 'src/utils/exception-filters/log.entity';
@@ -31,6 +32,7 @@ import { Status } from 'src/types/enums';
 import { ImportXmlDto } from './dto/import-xml.dto';
 import { PaginationDto } from '../types/pagination.dto';
 import { AppDataSource } from 'src/app.datasource';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ImportXmlService {
@@ -98,25 +100,58 @@ export class ImportXmlService {
   }
 
   async reprocessXML(id: string) {
+    const queryRunner = await AppDataSource.createQueryRunner();
+
     const importXml = await AppDataSource.createQueryBuilder()
       .select('i')
       .from(ImportXml, 'i')
       .where('i.professor_name=:id', { id: id })
+      .orderBy('included_at', 'DESC')
       .getOne();
 
     if (!importXml) throw Error('XML not found');
+    // setTimeout(async () => {
+    //   // await this.importXML(importXml);
+    // }, 5000);
+    console.log(importXml);
+    // await queryRunner.startTransaction();
+    // try {
+    // const a = this.updateXMLStatus(
+    //   importXml.id,
+    //   undefined,
+    //   Status.LOADING,
+    //   importXml.professorName,
+    // );
+    // console.log(a);
 
-    await this.updateXMLStatus(
-      importXml.name,
-      Status.LOADING,
-      importXml.professorName,
-    );
-
+    // } catch (error) {
+    //   await queryRunner.rollbackTransaction();
+    //   throw error;
+    // } finally {
+    //   await queryRunner.release();
+    // }
+    // // console.log(importXml);
+    // let importXmlLog = this.createImportLog(files[i], username, 'undefined');
+    const filesArray: Array<Express.Multer.File> = [];
+    const filePath = this.XML_PATH + '/' + importXml.name;
     const file = {
-      filename: importXml.name,
+      fieldname: 'file0',
+      filename: uuidv4(),
+      encoding: '7bit',
+      mimetype: 'application/octet-stream',
       originalname: importXml.name,
-      path: this.XML_PATH + '/' + importXml.name,
+      path: filePath,
+      destination: filePath,
+      size: fs.statSync(filePath).size,
+      buffer: fs.readFileSync(filePath), // Read the file into a buffer
+      stream: fs.createReadStream(filePath),
     };
+    // console.log(file.filename);
+    // const filesArray: Array<Express.Multer.File> = [];
+    filesArray.push(file);
+
+    // try {
+    this.enqueueFiles(filesArray, importXml.user);
 
     // await this.importXML(file, importXml.user);
 
@@ -185,6 +220,8 @@ export class ImportXmlService {
             `The file could not be renamed. Message: ${error.message}`,
           );
         }
+        console.log(error);
+
         throw Error('The file could not be renamed.');
       }
 
@@ -1126,6 +1163,7 @@ export class ImportXmlService {
     const queryRunner = AppDataSource.createQueryRunner();
     try {
       for (let i = 0; i < files.length; i++) {
+        console.log(files[i]);
         await queryRunner.startTransaction();
         const importXml = new ImportXml();
         importXml.id = files[i].filename;
@@ -1136,7 +1174,7 @@ export class ImportXmlService {
         importXml.status = Status.PENDING;
         importXml.startedAt = undefined;
         importXml.finishedAt = undefined;
-
+        console.log(importXml);
         await AppDataSource.createQueryBuilder(queryRunner)
           .insert()
           .into(ImportXml)
@@ -1151,9 +1189,10 @@ export class ImportXmlService {
       await queryRunner.release();
     }
 
-    this.insertDataToDatabase(files, username).catch((err) =>
-      logErrorToDatabase(err, EntityType.XML, undefined),
-    );
+    this.insertDataToDatabase(files, username).catch((err) => {
+      logErrorToDatabase(err, EntityType.XML, undefined);
+      console.log(err);
+    });
   }
 
   async insertDataToDatabase(
@@ -1172,6 +1211,7 @@ export class ImportXmlService {
       for (let i = 0; i < files.length; i++) {
         await queryRunner.startTransaction();
         try {
+          // console.log(files[i]);
           this.updateXMLStatus(
             files[i].filename,
             undefined,
@@ -1263,6 +1303,7 @@ export class ImportXmlService {
               Status.NOT_IMPORTED,
               professorDto?.name,
             );
+            console.log(err);
             throw err;
           } finally {
             await this.save(importXmlLog);
