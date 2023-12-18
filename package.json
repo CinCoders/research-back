@@ -27,7 +27,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "typeorm": "ts-node ./node_modules/typeorm/cli",
     "migration:run": "npm run typeorm migration:run -- -d ./src/app.datasource.ts",
-    "migration:generate": "npm run typeorm -- -d ./src/app.datasource.ts migration:generate -- -n %npm_config_name%  -d ./src/database/migrations",
+    "migration:generate": "npm run typeorm -- -d ./src/app.datasource.ts migration:generate ./src/database/migrations/%npm_config_name%",
     "schema:drop": "npm run typeorm schema:drop -- -d ./src/app.datasource.ts"
   },
   "dependencies": {
