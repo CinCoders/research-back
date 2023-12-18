@@ -15,6 +15,9 @@ import { FinancierService } from './services/financier/financier.service';
 import { ProjectService } from './services/project/project.service';
 import { StringSimilarityService } from 'src/utils/string-similarity.service';
 import { PublicationsModule } from 'src/publications/publications.module';
+import { BookService } from './services/book/book.service';
+import { PatentService } from './services/patent/patent.service';
+import { ArtisticProductionService } from './services/artistic-production/artistic-production.service';
 
 @Module({
   imports: [
@@ -37,6 +40,9 @@ import { PublicationsModule } from 'src/publications/publications.module';
     FinancierService,
     ProjectService,
     StringSimilarityService,
+    BookService,
+    PatentService,
+    ArtisticProductionService,
   ],
   exports: [
     ProfessorService,
@@ -45,6 +51,9 @@ import { PublicationsModule } from 'src/publications/publications.module';
     AdviseeService,
     FinancierService,
     ProjectService,
+    BookService,
+    PatentService,
+    ArtisticProductionService,
   ],
 })
 export class ProfessorModule {}
