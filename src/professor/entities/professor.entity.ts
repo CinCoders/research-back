@@ -1,5 +1,12 @@
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Advisee } from './advisee.entity';
 import { JournalPublication } from './journal-publication.entity';
 import { ConferencePublication } from './conference-publication.entity';
@@ -7,6 +14,7 @@ import { Project } from './projects.entity';
 import { Book } from './book.entity';
 import { Patent } from './patent.entity';
 import { ArtisticProduction } from './artisticProduction.entity';
+import { Scholarship } from '../../scholarship/entities/scholarship.entity';
 
 @ApiTags('Professor')
 @Entity({ name: 'professor' })
@@ -62,4 +70,11 @@ export class Professor {
     { cascade: true },
   )
   artisticProduction!: ArtisticProduction[];
+
+  @ApiProperty({ name: 'scholarship', type: Scholarship, nullable: true })
+  @ManyToOne(() => Scholarship, (scholarship) => scholarship.professor, {
+    nullable: true,
+  })
+  @JoinColumn({ name: 'scholarship_id' })
+  scholarship?: Scholarship;
 }
