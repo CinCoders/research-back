@@ -17,6 +17,9 @@ import { Project } from './entities/projects.entity';
 import { ProjectFinancier } from './entities/projectFinancier.entity';
 import { AppDataSource } from 'src/app.datasource';
 import createLog from 'src/utils/exception-filters/log-utils';
+import { Book } from './entities/book.entity';
+import { Patent } from './entities/patent.entity';
+import { ArtisticProduction } from './entities/artisticProduction.entity';
 
 @Injectable()
 export class ProfessorService {
@@ -226,6 +229,24 @@ export class ProfessorService {
       await AppDataSource.createQueryBuilder(queryRunner)
         .delete()
         .from(Advisee)
+        .where('professor_id=:id', { id: professor.id })
+        .execute();
+
+      await AppDataSource.createQueryBuilder(queryRunner)
+        .delete()
+        .from(Book)
+        .where('professor_id=:id', { id: professor.id })
+        .execute();
+
+      await AppDataSource.createQueryBuilder(queryRunner)
+        .delete()
+        .from(Patent)
+        .where('professor_id=:id', { id: professor.id })
+        .execute();
+
+      await AppDataSource.createQueryBuilder(queryRunner)
+        .delete()
+        .from(ArtisticProduction)
         .where('professor_id=:id', { id: professor.id })
         .execute();
 
