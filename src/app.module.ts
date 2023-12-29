@@ -17,6 +17,7 @@ import {
 } from 'nest-keycloak-connect';
 import { APP_GUARD } from '@nestjs/core';
 import { AppDataSource } from './app.datasource';
+import { ScholarshipModule } from './scholarship/scholarship.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AppDataSource } from './app.datasource';
     PublicationsModule,
     PostGraduationModule,
     ProjectsModule,
+    ScholarshipModule,
     KeycloakConnectModule.registerAsync({
       useFactory: () => {
         let keycloakConfig;
@@ -44,6 +46,7 @@ import { AppDataSource } from './app.datasource';
         };
       },
     }),
+    ScholarshipModule,
   ],
   controllers: [],
   providers: [

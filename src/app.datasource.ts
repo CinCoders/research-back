@@ -20,6 +20,12 @@ import { AlterTableJournalConference1661801391940 } from './database/migrations/
 import { adviseeUpdate11662986604383 } from './database/migrations/1662986604383-adviseeUpdate1';
 import { AlterJournalPublication1663700407696 } from './database/migrations/1663700407696-AlterJournalPublication';
 import { importXmlRefactoring1683838256398 } from './database/migrations/1683838256398-importXmlRefactoring';
+import { Book } from './professor/entities/book.entity';
+import { Patent } from './professor/entities/patent.entity';
+import { ArtisticProduction } from './professor/entities/artisticProduction.entity';
+import { CreateBookAndPatentAndArtisticProduction1702905182255 } from './database/migrations/1702905182255-createBookAndPatentAndArtisticProduction';
+import { Scholarship } from './scholarship/entities/scholarship.entity';
+import { CreateScholarship1703094449669 } from './database/migrations/1703094449669-createScholarship';
 
 config();
 
@@ -46,6 +52,10 @@ export const AppDataSource = new DataSource({
     Conference,
     Journal,
     Log,
+    Book,
+    Patent,
+    ArtisticProduction,
+    Scholarship,
   ],
   migrations: [
     CreateDatabase1641912530758,
@@ -56,5 +66,7 @@ export const AppDataSource = new DataSource({
     adviseeUpdate11662986604383,
     AlterJournalPublication1663700407696,
     importXmlRefactoring1683838256398,
+    CreateBookAndPatentAndArtisticProduction1702905182255,
+    CreateScholarship1703094449669,
   ],
 });

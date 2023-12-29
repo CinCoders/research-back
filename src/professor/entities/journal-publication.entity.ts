@@ -57,6 +57,22 @@ export class JournalPublication {
   @Column({ name: 'qualis', length: 4, nullable: true })
   qualis?: string;
 
+  @ApiProperty({ name: 'bigArea', type: String })
+  @Column({ name: 'bigArea', nullable: true })
+  bigArea?: string;
+
+  @ApiProperty({ name: 'area', type: String })
+  @Column({ name: 'area', nullable: true })
+  area?: string;
+
+  @ApiProperty({ name: 'subArea', type: String })
+  @Column({ name: 'subArea', nullable: true })
+  subArea?: string;
+
+  @ApiProperty({ name: 'speciality', type: String })
+  @Column({ name: 'speciality', nullable: true })
+  speciality?: string;
+
   @ApiProperty({ name: 'authors', type: String, nullable: true })
   @Column({ name: 'authors', length: 1500, nullable: true })
   authors?: string;

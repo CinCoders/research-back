@@ -85,6 +85,10 @@ export class JournalPublicationService {
       journalPublication.issn = journalPublicationDto.issn;
       journalPublication.journalTitle = journalPublicationDto.journalTitle;
       journalPublication.authors = journalPublicationDto.authors;
+      journalPublication.bigArea = journalPublicationDto.bigArea;
+      journalPublication.area = journalPublicationDto.area;
+      journalPublication.subArea = journalPublicationDto.subArea;
+      journalPublication.speciality = journalPublicationDto.speciality;
 
       await AppDataSource.createQueryBuilder(queryRunner)
         .insert()
