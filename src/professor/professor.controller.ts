@@ -19,6 +19,7 @@ import { Professor } from './entities/professor.entity';
 import { ProfessorService } from './professor.service';
 import { FilterValidationPipe } from './dto/parse-filter.pipe';
 import { Response } from 'express';
+import { ProfessorTableDto } from './dto/professor-table.dto';
 
 @Roles({ roles: [SystemRoles.USERS] })
 @ApiTags('Professor Module')
@@ -30,10 +31,10 @@ export class ProfessorController {
     status: 200,
     description: 'Returns list of professors.',
     isArray: true,
-    type: ProfessorDto,
+    type: ProfessorTableDto,
   })
   @Get()
-  async get(): Promise<ProfessorDto[]> {
+  async get(): Promise<ProfessorTableDto[]> {
     return await this.professorService.findAll();
   }
 
