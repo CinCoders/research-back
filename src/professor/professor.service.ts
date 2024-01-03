@@ -20,6 +20,7 @@ import createLog from 'src/utils/exception-filters/log-utils';
 import { Book } from './entities/book.entity';
 import { Patent } from './entities/patent.entity';
 import { ArtisticProduction } from './entities/artisticProduction.entity';
+import { ProfessorTableDto } from './dto/professor-table.dto';
 
 @Injectable()
 export class ProfessorService {
@@ -39,19 +40,54 @@ export class ProfessorService {
     return professor;
   }
 
-  async findAll(): Promise<ProfessorDto[]> {
+  async findAll(): Promise<ProfessorTableDto[]> {
     const professors = await AppDataSource.createQueryBuilder()
-      .select('p')
+      .select(['p.id as id', 'p.identifier as identifier', 'p.name as name'])
+      .addSelect((subQuery) => {
+        return subQuery
+          .select(`COUNT(*)`, 'computerArticles')
+          .from(JournalPublication, 'jp')
+          .where('jp.professor_id = p.id');
+      }, 'computerArticles')
+      .addSelect((subQuery) => {
+        return subQuery
+          .select(`COUNT(*)`, 'computerPublications')
+          .from(ConferencePublication, 'cp')
+          .where('cp.professor_id = p.id');
+      }, 'computerPublications')
+      .addSelect((subQuery) => {
+        return subQuery
+          .select(`COUNT(*)`, 'books')
+          .from(Book, 'b')
+          .where('b.professor_id = p.id');
+      }, 'books')
+      .addSelect((subQuery) => {
+        return subQuery
+          .select(`COUNT(*)`, 'patents')
+          .from(Patent, 'pt')
+          .where('pt.professor_id = p.id');
+      }, 'patents')
+      .addSelect((subQuery) => {
+        return subQuery
+          .select(`COUNT(*)`, 'artisticProductions')
+          .from(ArtisticProduction, 'ap')
+          .where('ap.professor_id = p.id');
+      }, 'artisticProductions')
       .from(Professor, 'p')
       .orderBy('p.name')
-      .getMany();
+      .getRawMany();
 
-    const result: ProfessorDto[] = [];
+    const result: ProfessorTableDto[] = [];
     professors.forEach((professor) => {
       result.push({
         professorId: professor.id,
         professorName: professor.name,
         identifier: professor.identifier,
+        computerArticles: +professor.computerArticles,
+        computerPublications: +professor.computerPublications,
+        books: +professor.books,
+        patents: +professor.patents,
+        artisticProductions: +professor.artisticProductions,
       });
     });
 
