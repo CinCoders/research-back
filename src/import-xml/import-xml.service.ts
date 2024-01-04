@@ -1712,43 +1712,6 @@ export class ImportXmlService {
             );
             // const filePath = this.generateFilePath(professorDto.identifier);
             try {
-<<<<<<< HEAD
-              // checar se o arquivo existe
-              fs.access(filePath, fs.constants.F_OK, (err) => {
-                if (err) {
-                  console.error('File does not exist or cannot be accessed.');
-                } else {
-                  // Check if the file is writable
-                  fs.access(filePath, fs.constants.W_OK, (err) => {
-                    if (err) {
-                      console.error(
-                        'File is not writable. Check file permissions.',
-                      );
-                    } else {
-                      // File is writable, proceed with rename
-                      fs.rename(
-                        files[i].path,
-                        this.XML_PATH + '/' + professorDto?.identifier + '.xml',
-                        (err) => {
-                          if (err) {
-                            console.error(
-                              'Error occurred during file renaming:',
-                              err,
-                            );
-                          } else {
-                            console.log('File renamed successfully.');
-                          }
-                        },
-                      );
-                    }
-                  });
-                }
-              });
-            } catch (error) {
-              console.error('Error occurred:', error);
-            }
-
-=======
               // Check if the file exists
               await this.checkFileExists(filePath);
 
@@ -1766,7 +1729,6 @@ export class ImportXmlService {
               // Handle error
             }
 
->>>>>>> a79b96d (fix bug while saving the xml names after changes)
             const filename = professorDto.identifier + '.xml';
 
             this.updateXMLStatus(
