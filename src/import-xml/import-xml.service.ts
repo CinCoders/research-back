@@ -1594,7 +1594,10 @@ export class ImportXmlService {
     return importXml;
   }
   generateFilePath = (identifier: string) => {
-    return `${this.XML_PATH}/${identifier}.xml`;
+    const cleanedIdentifier = identifier
+      .replace('.zip', '')
+      .replace('.xml', '');
+    return `${this.XML_PATH}/${cleanedIdentifier}.xml`;
   };
 
   checkFileExists = (filePath: string) => {
@@ -1707,9 +1710,7 @@ export class ImportXmlService {
             // se o professor não existir, criamos, se existir podemos usá-lo
             professorDto = this.getProfessorData(json);
             // console.log();
-            const filePath = this.generateFilePath(
-              files[i].originalname.replace('.zip', ''),
-            );
+            const filePath = this.generateFilePath(files[i].originalname);
             // const filePath = this.generateFilePath(professorDto.identifier);
             try {
               // Check if the file exists
@@ -1808,6 +1809,7 @@ export class ImportXmlService {
               professorDto.name,
             );
           } catch (err) {
+            console.log(err);
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(
               files[i].filename,
