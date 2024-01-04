@@ -112,23 +112,9 @@ export class ImportXmlService {
       await queryRunner.startTransaction();
 
       if (!importXml) throw Error('XML not found');
-      // setTimeout(async () => {
-      //   // await this.importXML(importXml);
-      // }, 5000);
-      console.log(importXml);
+
       const filesArray: Array<Express.Multer.File> = [];
       const filePath = this.XML_PATH + '/' + importXml.name;
-
-      // const mimeType = mime.contentType(filePath);
-      // console.log('mimeType', mimeType);
-      // fs.access(filePath, fs.constants.W_OK, (err) => {
-      //   if (err) {
-      //     console.error('File is not writable. Check file permissions.');
-      //   } else {
-      //     console.log('File is writable. Proceed with the operation.');
-      //     // Perform file renaming or overwriting here
-      //   }
-      // });
       const file = {
         fieldname: 'file0',
         filename: uuidv4(),
@@ -141,11 +127,9 @@ export class ImportXmlService {
         buffer: fs.readFileSync(filePath), // Read the file into a buffer
         stream: fs.createReadStream(filePath),
       };
-      console.log(file);
       filesArray.push(file);
       await queryRunner.commitTransaction();
 
-      // try {
       this.enqueueFiles(filesArray, importXml.user);
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -154,7 +138,6 @@ export class ImportXmlService {
       await queryRunner.release();
       return importXml;
     }
-    // await this.importXML(file, importXml.user);
   }
 
   async findXMLDocument(file: Express.Multer.File) {
@@ -1161,18 +1144,14 @@ export class ImportXmlService {
     const queryRunner = AppDataSource.createQueryRunner();
     try {
       for (let i = 0; i < files.length; i++) {
-        // console.log(files[i]);
         await queryRunner.startTransaction();
         const importXml = new ImportXml();
         importXml.id = files[i].filename;
         importXml.name = files[i].originalname;
-        // importXml.originalfilename = files[i].originalname;
-        // importXml.filename = '';
         importXml.user = username;
         importXml.status = Status.PENDING;
         importXml.startedAt = undefined;
         importXml.finishedAt = undefined;
-        console.log(importXml);
         await AppDataSource.createQueryBuilder(queryRunner)
           .insert()
           .into(ImportXml)
@@ -1189,7 +1168,6 @@ export class ImportXmlService {
 
     this.insertDataToDatabase(files, username).catch((err) => {
       logErrorToDatabase(err, EntityType.XML, undefined);
-      console.log(err);
     });
   }
 
@@ -1209,7 +1187,6 @@ export class ImportXmlService {
       for (let i = 0; i < files.length; i++) {
         await queryRunner.startTransaction();
         try {
-          console.log(files[i]);
           this.updateXMLStatus(
             files[i].filename,
             undefined,
@@ -1232,7 +1209,7 @@ export class ImportXmlService {
               this.XML_PATH + '/' + professorDto.identifier + '.xml';
             // renomear com o lattes do professor
             try {
-              // Check if the file exists
+              // checar se o arquivo existe
               fs.access(filePath, fs.constants.F_OK, (err) => {
                 if (err) {
                   console.error('File does not exist or cannot be accessed.');
@@ -1266,11 +1243,6 @@ export class ImportXmlService {
             } catch (error) {
               console.error('Error occurred:', error);
             }
-
-            // await rename(
-            //   files[i].path,
-            //   this.XML_PATH + '/' + professorDto.identifier + '.xml',
-            // );
 
             const filename = professorDto.identifier + '.xml';
 
@@ -1331,7 +1303,6 @@ export class ImportXmlService {
               Status.CONCLUDED,
               professorDto.name,
             );
-            console.log(files[i]);
           } catch (err) {
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(

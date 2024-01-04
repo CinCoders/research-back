@@ -83,7 +83,6 @@ export class ImportXmlController {
   })
   @Get(':id/reprocess')
   async reprocessXML(@Res() res: Response, @Param('id') id: string) {
-    console.log(id);
     const importedXml = await this.importXmlService.reprocessXML(id);
     return res.status(200).send(importedXml);
   }
