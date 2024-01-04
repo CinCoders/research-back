@@ -119,7 +119,6 @@ export class ProfessorController {
       ) {
         return res.status(HttpStatus.NOT_FOUND).send(err.message);
       }
-      console.log(err);
       return res
         .status(HttpStatus.INTERNAL_SERVER_ERROR)
         .send('Internal server error');

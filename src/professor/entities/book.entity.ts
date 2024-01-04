@@ -1,5 +1,4 @@
-import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
-import { Conference } from '../../qualis/entities/conference.entity';
+import { ApiProperty, ApiTags } from '@nestjs/swagger';
 import {
   Column,
   Entity,
@@ -9,9 +8,9 @@ import {
 } from 'typeorm';
 import { Professor } from './professor.entity';
 
-@ApiTags('ConferencePublication')
-@Entity({ name: 'conference_publication' })
-export class ConferencePublication {
+@ApiTags('Book')
+@Entity({ name: 'book' })
+export class Book {
   @ApiProperty({ name: 'id', type: Number })
   @PrimaryGeneratedColumn('identity', {
     name: 'id',
@@ -20,42 +19,25 @@ export class ConferencePublication {
   id!: number;
 
   @ApiProperty({ name: 'professor', type: Number })
-  @ManyToOne(() => Professor, (professor) => professor.conferencePublications)
+  @ManyToOne(() => Professor, (professor) => professor.book)
   @JoinColumn({ name: 'professor_id' })
   professor!: Professor;
 
-  @ApiPropertyOptional({ name: 'conference', type: Number })
-  @ManyToOne(() => Conference)
-  @JoinColumn({ name: 'conference_id' })
-  conference?: Conference;
-
   @ApiProperty({ name: 'title', type: String })
-  @Column({ name: 'title', length: 255 })
+  @Column({ name: 'title' })
   title!: string;
 
-  @ApiProperty({ name: 'event', type: String })
-  @Column({ name: 'event', length: 255 })
-  event!: string;
-
-  @ApiProperty({ name: 'doi', type: String, nullable: true })
-  @Column({ name: 'doi', length: 50, nullable: true })
-  doi?: string;
-
-  @ApiProperty({ name: 'proceedings', type: String })
-  @Column({ name: 'proceedings', length: 255 })
-  proceedings!: string;
+  @ApiProperty({ name: 'language', type: String })
+  @Column({ name: 'language' })
+  language!: string;
 
   @ApiProperty({ name: 'year', type: Number })
   @Column({ name: 'year' })
   year!: number;
 
-  @ApiProperty({ name: 'isTop', type: Boolean })
-  @Column({ name: 'is_top', default: false })
-  isTop!: boolean;
-
-  @ApiProperty({ name: 'qualis', type: String })
-  @Column({ name: 'qualis', length: 4 })
-  qualis!: string;
+  @ApiProperty({ name: 'publicationCountry', type: String })
+  @Column({ name: 'publicationCountry' })
+  publicationCountry!: string;
 
   @ApiProperty({ name: 'bigArea', type: String })
   @Column({ name: 'bigArea', nullable: true })

@@ -1,30 +1,33 @@
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
 import { Professor } from '../entities/professor.entity';
 
-@ApiTags('JournalPublicationDto')
-export class JournalPublicationDto {
+@ApiTags('ArtisticProductionDto')
+export class ArtisticProductionDto {
   @ApiProperty({ name: 'professor', type: Professor })
   professor!: Professor;
 
   @ApiProperty({ name: 'title', type: String })
   title!: string;
 
-  @ApiProperty({ name: 'year', type: String })
-  year!: string;
+  @ApiProperty({ name: 'language', type: String })
+  language!: string;
 
-  @ApiProperty({ name: 'doi', type: String })
-  doi!: string;
+  @ApiProperty({ name: 'year', type: Number })
+  year!: number;
 
-  @ApiProperty({ name: 'issn', type: String })
-  issn!: string;
+  @ApiProperty({ name: 'country', type: String })
+  country!: string;
 
-  @ApiProperty({ name: 'journalTitle', type: String, nullable: true })
-  journalTitle?: string;
+  @ApiProperty({ name: 'authorActivity', type: String })
+  authorActivity!: string;
+
+  @ApiProperty({ name: 'promotingInstitution', type: String })
+  promotingInstitution!: string;
 
   @ApiProperty({ name: 'bigArea', type: String, nullable: true })
   bigArea?: string;
 
-  @ApiProperty({ name: 'journaarealTitle', type: String, nullable: true })
+  @ApiProperty({ name: 'area', type: String, nullable: true })
   area?: string;
 
   @ApiProperty({ name: 'subArea', type: String, nullable: true })

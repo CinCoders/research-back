@@ -31,8 +31,14 @@ import { ImportXml } from './entities/import-xml.entity';
 import { Status } from 'src/types/enums';
 import { ImportXmlDto } from './dto/import-xml.dto';
 import { PaginationDto } from '../types/pagination.dto';
-import { AppDataSource } from 'src/app.datasource';
 import { v4 as uuidv4 } from 'uuid';
+import { AppDataSource } from '.././app.datasource';
+import { BookDto } from '../professor/dto/book.dto';
+import { BookService } from '../professor/services/book/book.service';
+import { PatentDto } from '../professor/dto/patent.dto';
+import { PatentService } from '../professor/services/patent/patent.service';
+import { ArtisticProductionDto } from '../professor/dto/artistic-production.dto';
+import { ArtisticProductionService } from '../professor/services/artistic-production/artistic-production.service';
 
 @Injectable()
 export class ImportXmlService {
@@ -47,6 +53,9 @@ export class ImportXmlService {
     private readonly adviseeService: AdviseeService,
     private readonly financierService: FinancierService,
     private readonly projectService: ProjectService,
+    private readonly bookService: BookService,
+    private readonly patentService: PatentService,
+    private readonly artisticProductionService: ArtisticProductionService,
   ) {}
 
   async findAllXmlsPaginated(paginationDto: PaginationDto) {
@@ -261,7 +270,76 @@ export class ImportXmlService {
     }
   }
 
+  getBooksFromXML(json: any) {
+    if (
+      json[Curriculum.CURRICULO_VITAE][Curriculum.PRODUCAO_BIBLIOGRAFICA][0][
+        Curriculum.LIVROS_E_CAPITULOS
+      ] &&
+      json[Curriculum.CURRICULO_VITAE][Curriculum.PRODUCAO_BIBLIOGRAFICA][0][
+        Curriculum.LIVROS_E_CAPITULOS
+      ][0][Curriculum.LIVROS_PUBLICADOS_OU_ORGANIZADOS]
+    ) {
+      return json[Curriculum.CURRICULO_VITAE][
+        Curriculum.PRODUCAO_BIBLIOGRAFICA
+      ][0][Curriculum.LIVROS_E_CAPITULOS][0][
+        Curriculum.LIVROS_PUBLICADOS_OU_ORGANIZADOS
+      ][0][Curriculum.LIVRO_PUBLICADO_OU_ORGANIZADO];
+    }
+  }
+
+  getPatentsFromXML(json: any) {
+    if (
+      json[Curriculum.CURRICULO_VITAE][Curriculum.PRODUCAO_TECNICA] &&
+      json[Curriculum.CURRICULO_VITAE][Curriculum.PRODUCAO_TECNICA][0][
+        Curriculum.PATENTE
+      ]
+    ) {
+      return json[Curriculum.CURRICULO_VITAE][Curriculum.PRODUCAO_TECNICA][0][
+        Curriculum.PATENTE
+      ];
+    }
+  }
+
+  getArtisticProductionsFromXML(json: any) {
+    if (
+      json[Curriculum.CURRICULO_VITAE][Curriculum.OUTRA_PRODUCAO] &&
+      json[Curriculum.CURRICULO_VITAE][Curriculum.OUTRA_PRODUCAO][0][
+        Curriculum.PRODUCAO_ARTISTICA_CULTURAL
+      ]
+    ) {
+      return json[Curriculum.CURRICULO_VITAE]?.[Curriculum.OUTRA_PRODUCAO]?.[0][
+        Curriculum.PRODUCAO_ARTISTICA_CULTURAL
+      ]?.[0][Curriculum.ARTES_VISUAIS];
+    }
+  }
+
   getArticleData(article: any, professor: Professor) {
+    const bigArea =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const area =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.NOME_DA_AREA_DO_CONHECIMENTO] ||
+      undefined;
+
+    const subArea =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const speciality =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.NOME_DA_ESPECIALIDADE] ||
+      undefined;
+
     const title =
       article[Curriculum.DADOS_BASICOS_DO_ARTIGO][0][Curriculum.ATRIBUTOS][
         Curriculum.TITULO_DO_ARTIGO
@@ -284,7 +362,7 @@ export class ImportXmlService {
         Curriculum.TITULO_DO_PERIODICO_OU_REVISTA
       ];
 
-    const curriculumAuthors = article[Curriculum.AUTORES];
+    const curriculumAuthors = article[Curriculum.AUTORES] || undefined;
     let authors = '';
 
     for (let i = 0; i < curriculumAuthors.length; i++) {
@@ -307,6 +385,10 @@ export class ImportXmlService {
       issn,
       journalTitle,
       authors,
+      bigArea,
+      area,
+      subArea,
+      speciality,
     };
 
     return articleDto;
@@ -359,6 +441,356 @@ export class ImportXmlService {
     }
   }
 
+  getBookData(book: any, professor: Professor) {
+    const bigArea =
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const area =
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.NOME_DA_AREA_DO_CONHECIMENTO] ||
+      undefined;
+
+    const subArea =
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const speciality =
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.NOME_DA_ESPECIALIDADE] ||
+      undefined;
+
+    const title =
+      book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.TITULO_DO_LIVRO
+      ] || undefined;
+
+    const language =
+      book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.IDIOMA
+      ] || undefined;
+
+    const year =
+      book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.ANO
+      ] || undefined;
+
+    const publicationCountry =
+      book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.PAIS_DE_PUBLICACAO
+      ] || undefined;
+
+    const bookAuthors = book[Curriculum.AUTORES] || undefined;
+    let authors = '';
+
+    for (let i = 0; i < bookAuthors.length; i++) {
+      const quoteName =
+        bookAuthors[i][Curriculum.ATRIBUTOS][Curriculum.NOME_PARA_CITACAO];
+      if (i === bookAuthors.length - 1) {
+        authors += `${quoteName}`;
+      } else {
+        authors += `${quoteName}; `;
+      }
+    }
+
+    const bookDto: BookDto = {
+      professor,
+      title,
+      language,
+      year,
+      publicationCountry,
+      authors,
+      bigArea,
+      area,
+      subArea,
+      speciality,
+    };
+
+    return bookDto;
+  }
+
+  getPatentData(patent: any, professor: Professor) {
+    const title =
+      patent[Curriculum.DADOS_BASICOS_DA_PATENTE]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.TITULO
+      ] || undefined;
+
+    const developmentYear =
+      patent[Curriculum.DADOS_BASICOS_DA_PATENTE]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.ANO_DESENVOLVIMENTO
+      ] || undefined;
+
+    const country =
+      patent[Curriculum.DADOS_BASICOS_DA_PATENTE]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.PAIS
+      ] || undefined;
+
+    const situationStatus =
+      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[0][
+        Curriculum.HISTORICO_SITUACOES_PATENTE
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.DESCRICAO_SITUACAO_PATENTE] ||
+      undefined;
+
+    const category =
+      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.CATEGORIA
+      ] || undefined;
+
+    const patentType =
+      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[0][
+        Curriculum.REGISTRO_OU_PATENTE
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.TIPO_PATENTE] || undefined;
+    const registryCode =
+      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[0][
+        Curriculum.REGISTRO_OU_PATENTE
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.CODIGO_DO_REGISTRO_OU_PATENTE
+      ] || undefined;
+    const depositRegistrationInstitution =
+      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[0][
+        Curriculum.REGISTRO_OU_PATENTE
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.INSTITUICAO_DEPOSITO_REGISTRO
+      ] || undefined;
+    const depositantName =
+      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[0][
+        Curriculum.REGISTRO_OU_PATENTE
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.NOME_DO_DEPOSITANTE] ||
+      undefined;
+
+    const patentAuthors = patent[Curriculum.AUTORES] || undefined;
+    let authors = '';
+
+    for (let i = 0; i < patentAuthors.length; i++) {
+      const quoteName =
+        patentAuthors[i][Curriculum.ATRIBUTOS][Curriculum.NOME_PARA_CITACAO];
+      if (i === patentAuthors.length - 1) {
+        authors += `${quoteName}`;
+      } else {
+        authors += `${quoteName}; `;
+      }
+    }
+
+    const patentDto: PatentDto = {
+      title,
+      developmentYear,
+      country,
+      situationStatus,
+      category,
+      patentType,
+      registryCode,
+      depositRegistrationInstitution,
+      depositantName,
+      authors,
+      professor,
+    };
+
+    return patentDto;
+  }
+
+  getArtisticProductionData(artisticProduction: any, professor: Professor) {
+    const title =
+      artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[0][
+        Curriculum.ATRIBUTOS
+      ]?.[Curriculum.TITULO] || undefined;
+
+    const year =
+      artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[0][
+        Curriculum.ATRIBUTOS
+      ]?.[Curriculum.ANO] || undefined;
+
+    const country =
+      artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[0][
+        Curriculum.ATRIBUTOS
+      ]?.[Curriculum.PAIS] || undefined;
+
+    const language =
+      artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[0][
+        Curriculum.ATRIBUTOS
+      ]?.[Curriculum.IDIOMA] || undefined;
+
+    const authorActivity =
+      artisticProduction[Curriculum.DETALHAMENTO_DE_ARTES_VISUAIS]?.[0][
+        Curriculum.ATRIBUTOS
+      ]?.[Curriculum.ATIVIDADE_DOS_AUTORES] || undefined;
+
+    const promotingInstitution =
+      artisticProduction[Curriculum.DETALHAMENTO_DE_ARTES_VISUAIS]?.[0][
+        Curriculum.ATRIBUTOS
+      ]?.[Curriculum.INSTITUICAO_PROMOTORA_DO_EVENTO] || undefined;
+
+    const bigArea =
+      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const area =
+      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.NOME_DA_AREA_DO_CONHECIMENTO] ||
+      undefined;
+
+    const subArea =
+      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const speciality =
+      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.NOME_DA_ESPECIALIDADE] ||
+      undefined;
+
+    const artisticProductionAuthors =
+      artisticProduction[Curriculum.AUTORES] || undefined;
+    let authors = '';
+
+    for (let i = 0; i < artisticProductionAuthors.length; i++) {
+      const quoteName =
+        artisticProductionAuthors[i][Curriculum.ATRIBUTOS][
+          Curriculum.NOME_PARA_CITACAO
+        ];
+      if (i === artisticProductionAuthors.length - 1) {
+        authors += `${quoteName}`;
+      } else {
+        authors += `${quoteName}; `;
+      }
+    }
+
+    const artisticProductionDto: ArtisticProductionDto = {
+      title,
+      year,
+      country,
+      language,
+      authorActivity,
+      promotingInstitution,
+      bigArea,
+      area,
+      subArea,
+      speciality,
+      authors,
+      professor,
+    };
+
+    return artisticProductionDto;
+  }
+
+  async insertBooks(
+    books: any,
+    professor: Professor,
+    queryRunner: QueryRunner,
+  ) {
+    if (!books) return;
+    for (let i = 0; books[i] !== undefined; i++) {
+      const bookData = books[i];
+      const bookDto = this.getBookData(bookData, professor);
+
+      let book = await this.bookService.findOne(bookDto, queryRunner);
+
+      try {
+        if (!book)
+          book = await this.bookService.createBook(bookDto, queryRunner);
+      } catch (error: any) {
+        if (book) {
+          await logErrorToDatabase(error, EntityType.BOOK, book.id.toString());
+        } else {
+          await logErrorToDatabase(error, EntityType.BOOK, undefined);
+        }
+        throw error;
+      }
+    }
+  }
+
+  async insertPatents(
+    patents: any,
+    professor: Professor,
+    queryRunner: QueryRunner,
+  ) {
+    if (!patents) return;
+    for (let i = 0; patents[i] !== undefined; i++) {
+      const patentData = patents[i];
+      const patentDto = this.getPatentData(patentData, professor);
+
+      let patent = await this.patentService.findOne(patentDto, queryRunner);
+
+      try {
+        if (!patent)
+          patent = await this.patentService.createPatent(
+            patentDto,
+            queryRunner,
+          );
+      } catch (error: any) {
+        if (patent) {
+          await logErrorToDatabase(
+            error,
+            EntityType.PATENT,
+            patent.id.toString(),
+          );
+        } else {
+          await logErrorToDatabase(error, EntityType.PATENT, undefined);
+        }
+        throw error;
+      }
+    }
+  }
+
+  async insertArtisticProductions(
+    artisticProductions: any,
+    professor: Professor,
+    queryRunner: QueryRunner,
+  ) {
+    if (!artisticProductions) return;
+    for (let i = 0; artisticProductions[i] !== undefined; i++) {
+      const artisticProductionData = artisticProductions[i];
+
+      const artisticProductionDto = this.getArtisticProductionData(
+        artisticProductionData,
+        professor,
+      );
+
+      let artisticProduction = await this.artisticProductionService.findOne(
+        artisticProductionDto,
+        queryRunner,
+      );
+
+      try {
+        if (!artisticProduction)
+          artisticProduction =
+            await this.artisticProductionService.createArtisticProduction(
+              artisticProductionDto,
+              queryRunner,
+            );
+      } catch (error: any) {
+        if (artisticProduction) {
+          await logErrorToDatabase(
+            error,
+            EntityType.ARTISTIC_PRODUCTION,
+            artisticProduction.id.toString(),
+          );
+        } else {
+          await logErrorToDatabase(
+            error,
+            EntityType.ARTISTIC_PRODUCTION,
+            undefined,
+          );
+        }
+        throw error;
+      }
+    }
+  }
+
   getConferencesFromXML(json: any) {
     if (
       json[Curriculum.CURRICULO_VITAE][Curriculum.PRODUCAO_BIBLIOGRAFICA][0][
@@ -372,6 +804,32 @@ export class ImportXmlService {
   }
 
   getConferenceData(conference: any, professor: Professor) {
+    const bigArea =
+      conference[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const area =
+      conference[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.NOME_DA_AREA_DO_CONHECIMENTO] ||
+      undefined;
+
+    const subArea =
+      conference[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const speciality =
+      conference[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][
+        Curriculum.AREA_DO_CONHECIMENTO_1
+      ]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.NOME_DA_ESPECIALIDADE] ||
+      undefined;
+
     const title =
       conference[Curriculum.DADOS_BASICOS_DO_TRABALHO][0][Curriculum.ATRIBUTOS][
         Curriculum.TITULO_DO_TRABALHO
@@ -394,7 +852,7 @@ export class ImportXmlService {
         Curriculum.DOI
       ];
 
-    const curriculumAuthors = conference[Curriculum.AUTORES];
+    const curriculumAuthors = conference[Curriculum.AUTORES] || undefined;
     let authors = '';
 
     for (let i = 0; i < curriculumAuthors.length; i++) {
@@ -417,6 +875,10 @@ export class ImportXmlService {
       proceedings,
       doi,
       authors,
+      bigArea,
+      area,
+      subArea,
+      speciality,
     };
 
     return conferenceDto;
@@ -1265,6 +1727,7 @@ export class ImportXmlService {
 
             // artigos publicados do professor
             const articles = this.getArticlesFromXML(json);
+
             await this.insertArticles(
               articles,
               professor,
@@ -1272,8 +1735,26 @@ export class ImportXmlService {
               queryRunner,
             );
 
+            const books = this.getBooksFromXML(json);
+
+            await this.insertBooks(books, professor, queryRunner);
+
+            const patents = this.getPatentsFromXML(json);
+
+            await this.insertPatents(patents, professor, queryRunner);
+
+            const artisticProductions =
+              this.getArtisticProductionsFromXML(json);
+
+            await this.insertArtisticProductions(
+              artisticProductions,
+              professor,
+              queryRunner,
+            );
+
             // trabalhos em eventos do professor
             const conferencePublications = this.getConferencesFromXML(json);
+
             await this.insertConferences(
               conferencePublications,
               professor,
@@ -1322,7 +1803,7 @@ export class ImportXmlService {
         }
       }
     } finally {
-      queryRunner.release();
+      await queryRunner.release();
     }
   }
 }

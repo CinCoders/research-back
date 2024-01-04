@@ -39,14 +39,16 @@ export class JournalPublicationService {
         if (journal.issn === journalPublication.issn) {
           journalPublication.journal = journal;
           journalPublication.qualis = journal.qualis;
+
           if (journal.isTop) {
             journalPublication.isTop = true;
           }
+
           await AppDataSource.createQueryBuilder(queryRunner)
             .insert()
             .into(JournalPublication)
             .values(journalPublication)
-            .orUpdate(['qualis', 'journal_id'], ['id'])
+            .orUpdate(['qualis', 'journal_id', 'is_top'], ['id'])
             .execute();
           return;
         }
@@ -83,6 +85,10 @@ export class JournalPublicationService {
       journalPublication.issn = journalPublicationDto.issn;
       journalPublication.journalTitle = journalPublicationDto.journalTitle;
       journalPublication.authors = journalPublicationDto.authors;
+      journalPublication.bigArea = journalPublicationDto.bigArea;
+      journalPublication.area = journalPublicationDto.area;
+      journalPublication.subArea = journalPublicationDto.subArea;
+      journalPublication.speciality = journalPublicationDto.speciality;
 
       await AppDataSource.createQueryBuilder(queryRunner)
         .insert()

@@ -12,7 +12,7 @@ export class PostGraduationService {
 
     await queryRunner.connect();
 
-    const result = queryRunner.query(`
+    const result = await queryRunner.query(`
     SELECT
       ${groupByProfessor ? 'p.id as "professorId",' : ''}
       ${groupByProfessor ? 'p.name as "professorName",' : ''}
