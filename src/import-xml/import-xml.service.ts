@@ -1605,7 +1605,7 @@ export class ImportXmlService {
     return new Promise<void>((resolve, reject) => {
       fs.access(filePath, fs.constants.F_OK, (err) => {
         if (err) {
-          console.log(err);
+          console.log('accessing err', err);
           reject('File does not exist or cannot be accessed.');
         } else {
           resolve();
@@ -1618,6 +1618,7 @@ export class ImportXmlService {
     return new Promise<void>((resolve, reject) => {
       fs.access(filePath, fs.constants.W_OK, (err) => {
         if (err) {
+          console.log('writable err', err);
           reject('File is not writable. Check file permissions.');
         } else {
           resolve();
@@ -1630,6 +1631,7 @@ export class ImportXmlService {
     return new Promise((resolve, reject) => {
       fs.rename(oldPath, newPath, (err) => {
         if (err) {
+          console.log('renaming', err);
           reject(err);
         } else {
           resolve('File renamed successfully.');
@@ -1714,10 +1716,10 @@ export class ImportXmlService {
             // const filePath = this.generateFilePath(professorDto.identifier);
             try {
               // Check if the file exists
-              await this.checkFileExists(filePath);
+              // await this.checkFileExists(filePath);
 
-              // Check if the file is writable
-              await this.checkFileWritable(filePath);
+              // // Check if the file is writable
+              // await this.checkFileWritable(filePath);
 
               // Rename the file
               const newFilePath = this.generateFilePath(
