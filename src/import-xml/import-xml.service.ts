@@ -23,6 +23,7 @@ import { Curriculum } from './curriculum.enum';
 import logErrorToDatabase from 'src/utils/exception-filters/log-error';
 import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
 import { extname } from 'path';
+import * as fs from 'fs';
 import extract from 'extract-zip';
 import { QueryRunner } from 'typeorm';
 import { Log } from 'src/utils/exception-filters/log.entity';
@@ -30,6 +31,7 @@ import { ImportXml } from './entities/import-xml.entity';
 import { Status } from 'src/types/enums';
 import { ImportXmlDto } from './dto/import-xml.dto';
 import { PaginationDto } from '../types/pagination.dto';
+import { v4 as uuidv4 } from 'uuid';
 import { AppDataSource } from '.././app.datasource';
 import { BookDto } from '../professor/dto/book.dto';
 import { BookService } from '../professor/services/book/book.service';
@@ -106,6 +108,47 @@ export class ImportXmlService {
     };
   }
 
+  async reprocessXML(id: string) {
+    const queryRunner = AppDataSource.createQueryRunner();
+    const importXml = await AppDataSource.createQueryBuilder()
+      .select('i')
+      .from(ImportXml, 'i')
+      .where('i.professor_name=:id', { id: id })
+      .orderBy('included_at', 'DESC')
+      .getOne();
+
+    try {
+      await queryRunner.startTransaction();
+
+      if (!importXml) throw Error('XML not found');
+
+      const filesArray: Array<Express.Multer.File> = [];
+      const filePath = this.XML_PATH + '/' + importXml.name;
+      const file = {
+        fieldname: 'file0',
+        filename: uuidv4(),
+        encoding: '7bit',
+        mimetype: 'application/octet-stream',
+        originalname: importXml.name,
+        path: filePath,
+        destination: filePath,
+        size: fs.statSync(filePath).size,
+        buffer: fs.readFileSync(filePath), // Read the file into a buffer
+        stream: fs.createReadStream(filePath),
+      };
+      filesArray.push(file);
+      await queryRunner.commitTransaction();
+
+      this.enqueueFiles(filesArray, importXml.user);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+      return importXml;
+    }
+  }
+
   async findXMLDocument(file: Express.Multer.File) {
     return AppDataSource.createQueryBuilder()
       .select('i')
@@ -168,6 +211,7 @@ export class ImportXmlService {
             `The file could not be renamed. Message: ${error.message}`,
           );
         }
+
         throw Error('The file could not be renamed.');
       }
 
@@ -1549,7 +1593,52 @@ export class ImportXmlService {
 
     return importXml;
   }
+  generateFilePath = (identifier: string) => {
+    const cleanedIdentifier = identifier
+      .replace('.zip', '')
+      .replace('.xml', '');
+    return `${this.XML_PATH}/${cleanedIdentifier}.xml`;
+  };
 
+  checkFileExists = (filePath: string) => {
+    console.log('filepath here', filePath);
+    return new Promise<void>((resolve, reject) => {
+      fs.access(filePath, fs.constants.F_OK, (err) => {
+        if (err) {
+          console.log('accessing err', err);
+          reject('File does not exist or cannot be accessed.');
+        } else {
+          resolve();
+        }
+      });
+    });
+  };
+
+  checkFileWritable = (filePath: string) => {
+    return new Promise<void>((resolve, reject) => {
+      fs.access(filePath, fs.constants.W_OK, (err) => {
+        if (err) {
+          console.log('writable err', err);
+          reject('File is not writable. Check file permissions.');
+        } else {
+          resolve();
+        }
+      });
+    });
+  };
+
+  renameFile = (oldPath: string, newPath: string) => {
+    return new Promise((resolve, reject) => {
+      fs.rename(oldPath, newPath, (err) => {
+        if (err) {
+          console.log('renaming', err);
+          reject(err);
+        } else {
+          resolve('File renamed successfully.');
+        }
+      });
+    });
+  };
   async save(importXmlLog: Log) {
     return await AppDataSource.createQueryBuilder()
       .insert()
@@ -1566,13 +1655,10 @@ export class ImportXmlService {
         const importXml = new ImportXml();
         importXml.id = files[i].filename;
         importXml.name = files[i].originalname;
-        // importXml.originalfilename = files[i].originalname;
-        // importXml.filename = '';
         importXml.user = username;
         importXml.status = Status.PENDING;
         importXml.startedAt = undefined;
         importXml.finishedAt = undefined;
-
         await AppDataSource.createQueryBuilder(queryRunner)
           .insert()
           .into(ImportXml)
@@ -1587,16 +1673,16 @@ export class ImportXmlService {
       await queryRunner.release();
     }
 
-    this.insertDataToDatabase(files, username).catch((err) =>
-      logErrorToDatabase(err, EntityType.XML, undefined),
-    );
+    this.insertDataToDatabase(files, username).catch((err) => {
+      logErrorToDatabase(err, EntityType.XML, undefined);
+    });
   }
 
   async insertDataToDatabase(
     files: Array<Express.Multer.File>,
     username: string,
   ) {
-    const queryRunner = await AppDataSource.createQueryRunner();
+    const queryRunner = AppDataSource.createQueryRunner();
     try {
       // os artigos top
       const journals = await this.journalService.findAll(queryRunner);
@@ -1625,12 +1711,26 @@ export class ImportXmlService {
 
             // se o professor não existir, criamos, se existir podemos usá-lo
             professorDto = this.getProfessorData(json);
-            // renomear com o lattes do professor
+            // console.log();
+            const filePath = this.generateFilePath(files[i].originalname);
+            // const filePath = this.generateFilePath(professorDto.identifier);
+            try {
+              // Check if the file exists
+              // await this.checkFileExists(filePath);
 
-            await rename(
-              files[i].path,
-              this.XML_PATH + '/' + professorDto.identifier + '.xml',
-            );
+              // // Check if the file is writable
+              // await this.checkFileWritable(filePath);
+
+              // Rename the file
+              const newFilePath = this.generateFilePath(
+                professorDto.identifier,
+              );
+              await this.renameFile(filePath, newFilePath);
+              console.log('File renamed successfully.');
+            } catch (error) {
+              console.error('Error occurred during file operation:', error);
+              // Handle error
+            }
 
             const filename = professorDto.identifier + '.xml';
 
@@ -1711,6 +1811,7 @@ export class ImportXmlService {
               professorDto.name,
             );
           } catch (err) {
+            console.log(err);
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(
               files[i].filename,

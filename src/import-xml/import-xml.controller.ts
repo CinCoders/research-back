@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Param,
   Post,
   Query,
   Res,
@@ -74,5 +75,15 @@ export class ImportXmlController {
       offset: offset ?? (limit ?? 25) * (page ?? 0),
     });
     return res.status(200).send(importedXmls);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Reprocesses the xml with the given id',
+  })
+  @Get(':id/reprocess')
+  async reprocessXML(@Res() res: Response, @Param('id') id: string) {
+    const importedXml = await this.importXmlService.reprocessXML(id);
+    return res.status(200).send(importedXml);
   }
 }
