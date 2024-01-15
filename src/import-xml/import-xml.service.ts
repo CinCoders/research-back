@@ -110,18 +110,17 @@ export class ImportXmlService {
     };
   }
 
-  async reprocessXML(id: string) {
-    const queryRunner = AppDataSource.createQueryRunner();
+  async reprocessXML(professorName: string) {
     const importXml = await AppDataSource.createQueryBuilder()
       .select('i')
       .from(ImportXml, 'i')
-      .where('i.professor_name=:id', { id: id })
+      .where('i.professor_name=:professorName', {
+        professorName: professorName,
+      })
       .orderBy('included_at', 'DESC')
       .getOne();
 
     try {
-      await queryRunner.startTransaction();
-
       if (!importXml) throw Error('XML not found');
 
       const filesArray: Array<Express.Multer.File> = [];
@@ -147,14 +146,10 @@ export class ImportXmlService {
       filesArray.push(file);
       fileStream.close();
 
-      await queryRunner.commitTransaction();
-
       this.enqueueFiles(filesArray, importXml.user);
     } catch (error) {
-      await queryRunner.rollbackTransaction();
       throw error;
     } finally {
-      await queryRunner.release();
       return importXml;
     }
   }
