@@ -26,6 +26,7 @@ import { ArtisticProduction } from './professor/entities/artisticProduction.enti
 import { CreateBookAndPatentAndArtisticProduction1702905182255 } from './database/migrations/1702905182255-createBookAndPatentAndArtisticProduction';
 import { Scholarship } from './scholarship/entities/scholarship.entity';
 import { CreateScholarship1703094449669 } from './database/migrations/1703094449669-createScholarship';
+import { alterTableImportXml1705606892154 } from './database/migrations/1705606892154-alterTableImportXml';
 
 config();
 
@@ -68,5 +69,6 @@ export const AppDataSource = new DataSource({
     importXmlRefactoring1683838256398,
     CreateBookAndPatentAndArtisticProduction1702905182255,
     CreateScholarship1703094449669,
+    alterTableImportXml1705606892154,
   ],
 });

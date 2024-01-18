@@ -95,6 +95,7 @@ export class ImportXmlService {
         professor: importedXmlEntity[i].professorName,
         user: importedXmlEntity[i].user,
         status: importedXmlEntity[i].status,
+        reprocessFlag: importedXmlEntity[i].reprocessFlag,
         includedAt: importedXmlEntity[i].includedAt,
         importTime: importTime,
       };
@@ -1642,6 +1643,7 @@ export class ImportXmlService {
         importXml.status = Status.PENDING;
         importXml.startedAt = undefined;
         importXml.finishedAt = undefined;
+        // importXml.reprocessFlag = true;
         await AppDataSource.createQueryBuilder(queryRunner)
           .insert()
           .into(ImportXml)
