@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { readdir, readFile, rename, unlink } from 'fs/promises';
 import { parseStringPromise } from 'xml2js';
 import { Financier } from 'src/professor/entities/financier.entity';
@@ -1610,14 +1610,13 @@ export class ImportXmlService {
 
   async updateReprocessFlag(id: string): Promise<void> {
     const xml: ImportXml | null = await this.findOne(id);
-    if (xml === null)
-      throw new NotFoundException(`XML with id ${id} not found`);
+    if (xml === null) throw Error('XML not found');
     try {
       // Set reprocessFlag to false for all XMLs with the same name as the one with the provided id
       await AppDataSource.createQueryBuilder()
         .update(ImportXml)
         .set({ reprocessFlag: false })
-        .where('name = :xmlName AND reprocessFlag = true', {
+        .where('name=:xmlName AND reprocessFlag = true', {
           xmlName: xml.name,
         })
         .execute();
@@ -1626,7 +1625,7 @@ export class ImportXmlService {
       await AppDataSource.createQueryBuilder()
         .update(ImportXml)
         .set({ reprocessFlag: true })
-        .where('id = :xmlId', { xmlId: xml.id })
+        .where('id=:xmlId', { xmlId: xml.id })
         .execute();
     } catch (error) {
       console.error('Error updating reprocessFlag:', error);
@@ -1677,7 +1676,7 @@ export class ImportXmlService {
         importXml.status = Status.PENDING;
         importXml.startedAt = undefined;
         importXml.finishedAt = undefined;
-        importXml.reprocessFlag = true;
+
         await AppDataSource.createQueryBuilder(queryRunner)
           .insert()
           .into(ImportXml)
@@ -1820,9 +1819,8 @@ export class ImportXmlService {
               Status.CONCLUDED,
               professorDto.name,
             );
+            // Atualiza o reprocessFlag
             this.updateReprocessFlag(files[i].filename);
-            // console.log(files[i]);
-            //update reprocess status here
           } catch (err) {
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(
