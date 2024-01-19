@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { readdir, readFile, rename, unlink } from 'fs/promises';
 import { parseStringPromise } from 'xml2js';
 import { Financier } from 'src/professor/entities/financier.entity';
@@ -109,6 +109,14 @@ export class ImportXmlService {
       offset: paginationDto.offset,
       data: importedXmlDto,
     };
+  }
+
+  async findOne(id: string) {
+    return AppDataSource.createQueryBuilder()
+      .select('i')
+      .from(ImportXml, 'i')
+      .where('i.id=:id', { id: id })
+      .getOne();
   }
 
   async reprocessXML(professorName: string) {
@@ -1600,6 +1608,32 @@ export class ImportXmlService {
     return importXml;
   }
 
+  async updateReprocessFlag(id: string): Promise<void> {
+    const xml: ImportXml | null = await this.findOne(id);
+    if (xml === null)
+      throw new NotFoundException(`XML with id ${id} not found`);
+    try {
+      // Set reprocessFlag to false for all XMLs with the same name as the one with the provided id
+      await AppDataSource.createQueryBuilder()
+        .update(ImportXml)
+        .set({ reprocessFlag: false })
+        .where('name = :xmlName AND reprocessFlag = true', {
+          xmlName: xml.name,
+        })
+        .execute();
+
+      // Set reprocessFlag to true for the specific XML with the provided id
+      await AppDataSource.createQueryBuilder()
+        .update(ImportXml)
+        .set({ reprocessFlag: true })
+        .where('id = :xmlId', { xmlId: xml.id })
+        .execute();
+    } catch (error) {
+      console.error('Error updating reprocessFlag:', error);
+      throw error;
+    }
+  }
+
   generateFilePath = (identifier: string) => {
     const cleanedIdentifier = identifier
       .replace('.zip', '')
@@ -1643,7 +1677,7 @@ export class ImportXmlService {
         importXml.status = Status.PENDING;
         importXml.startedAt = undefined;
         importXml.finishedAt = undefined;
-        // importXml.reprocessFlag = true;
+        importXml.reprocessFlag = true;
         await AppDataSource.createQueryBuilder(queryRunner)
           .insert()
           .into(ImportXml)
@@ -1786,6 +1820,9 @@ export class ImportXmlService {
               Status.CONCLUDED,
               professorDto.name,
             );
+            this.updateReprocessFlag(files[i].filename);
+            // console.log(files[i]);
+            //update reprocess status here
           } catch (err) {
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(
