@@ -1,4 +1,5 @@
 export class ImportXmlDto {
+  id!: string;
   name!: string;
   professor?: string;
   user!: string;

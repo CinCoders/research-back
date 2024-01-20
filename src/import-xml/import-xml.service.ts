@@ -91,6 +91,7 @@ export class ImportXmlService {
       }
 
       const xmlDto: ImportXmlDto = {
+        id: importedXmlEntity[i].id,
         name: importedXmlEntity[i].name,
         professor: importedXmlEntity[i].professorName,
         user: importedXmlEntity[i].user,
