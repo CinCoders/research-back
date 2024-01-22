@@ -120,22 +120,15 @@ export class ImportXmlService {
       .getOne();
   }
 
-  async reprocessXML(professorName: string) {
-    const importXml = await AppDataSource.createQueryBuilder()
-      .select('i')
-      .from(ImportXml, 'i')
-      .where('i.professor_name=:professorName', {
-        professorName: professorName,
-      })
-      .orderBy('included_at', 'DESC')
-      .getOne();
+  async reprocessXML(id: string) {
+    const importedXml = await this.findOne(id);
 
     try {
-      if (!importXml) throw Error('XML not found');
+      if (!importedXml) throw Error('XML not found');
 
       const filesArray: Array<Express.Multer.File> = [];
 
-      const filePath = this.XML_PATH + '/' + importXml.name;
+      const filePath = this.XML_PATH + '/' + importedXml.name;
       const normalizedFilePath = this.path.normalize(filePath);
 
       const fileBuffer = await fs.promises.readFile(normalizedFilePath);
@@ -146,7 +139,7 @@ export class ImportXmlService {
         filename: uuidv4(),
         encoding: '7bit',
         mimetype: 'application/octet-stream',
-        originalname: importXml.name,
+        originalname: importedXml.name,
         path: normalizedFilePath,
         destination: normalizedFilePath,
         size: fs.statSync(normalizedFilePath).size,
@@ -156,11 +149,11 @@ export class ImportXmlService {
       filesArray.push(file);
       fileStream.close();
 
-      this.enqueueFiles(filesArray, importXml.user);
+      this.enqueueFiles(filesArray, importedXml.user);
     } catch (error) {
       throw error;
     } finally {
-      return importXml;
+      return importedXml;
     }
   }
 
@@ -1677,6 +1670,7 @@ export class ImportXmlService {
         importXml.status = Status.PENDING;
         importXml.startedAt = undefined;
         importXml.finishedAt = undefined;
+        importXml.reprocessFlag = true;
 
         await AppDataSource.createQueryBuilder(queryRunner)
           .insert()
