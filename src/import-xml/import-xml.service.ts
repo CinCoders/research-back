@@ -1602,27 +1602,27 @@ export class ImportXmlService {
     return importXml;
   }
 
-  async updateReprocessFlag(id: string): Promise<void> {
+  async updateStoredXml(id: string): Promise<void> {
     const xml: ImportXml | null = await this.findOne(id);
     if (xml === null) throw Error('XML not found');
     try {
-      // Set reprocessFlag to false for all XMLs with the same name as the one with the provided id
+      // Set storedXml to false for all XMLs with the same name as the one with the provided id
       await AppDataSource.createQueryBuilder()
         .update(ImportXml)
-        .set({ reprocessFlag: false })
-        .where('name=:xmlName AND reprocessFlag = true', {
+        .set({ storedXml: false })
+        .where('name=:xmlName AND storedXml = true', {
           xmlName: xml.name,
         })
         .execute();
 
-      // Set reprocessFlag to true for the specific XML with the provided id
+      // Set storedXml to true for the specific XML with the provided id
       await AppDataSource.createQueryBuilder()
         .update(ImportXml)
-        .set({ reprocessFlag: true })
+        .set({ storedXml: true })
         .where('id=:xmlId', { xmlId: xml.id })
         .execute();
     } catch (error) {
-      console.error('Error updating reprocessFlag:', error);
+      console.error('Error updating storedXml:', error);
       throw error;
     }
   }
@@ -1814,8 +1814,8 @@ export class ImportXmlService {
               Status.CONCLUDED,
               professorDto.name,
             );
-            // Atualiza o reprocessFlag
-            this.updateReprocessFlag(files[i].filename);
+            // Atualiza o storedXml
+            this.updateStoredXml(files[i].filename);
           } catch (err) {
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(
