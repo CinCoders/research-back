@@ -1814,8 +1814,6 @@ export class ImportXmlService {
               Status.CONCLUDED,
               professorDto.name,
             );
-            // Atualiza o storedXml
-            this.updateStoredXml(files[i].filename);
           } catch (err) {
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(
@@ -1826,6 +1824,8 @@ export class ImportXmlService {
             );
             throw err;
           } finally {
+            // Atualiza o storedXml
+            this.updateStoredXml(files[i].filename);
             await this.save(importXmlLog);
           }
           await queryRunner.commitTransaction();
