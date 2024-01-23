@@ -5,13 +5,13 @@ export class alterTableImportXml1705606892154 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "xml_imports" ADD COLUMN "reprocess_flag" BOOLEAN DEFAULT false`,
+      `ALTER TABLE "xml_imports" ADD COLUMN "stored_xml" BOOLEAN DEFAULT false`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "xml_imports" DROP COLUMN "reprocess_flag"`,
+      `ALTER TABLE "xml_imports" DROP COLUMN "stored_xml"`,
     );
   }
 }

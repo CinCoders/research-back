@@ -4,7 +4,7 @@ export class ImportXmlDto {
   professor?: string;
   user!: string;
   status!: string;
-  reprocessFlag!: boolean;
+  storedXml!: boolean;
   includedAt!: Date;
   importTime?: number;
 }

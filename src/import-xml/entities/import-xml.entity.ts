@@ -25,8 +25,8 @@ export class ImportXml {
   status!: string;
 
   @ApiProperty()
-  @Column({ name: 'reprocess_flag' })
-  reprocessFlag!: boolean;
+  @Column({ name: 'stored_xml' })
+  storedXml!: boolean;
 
   @ApiProperty()
   @CreateDateColumn({ name: 'included_at', type: 'timestamptz' })
