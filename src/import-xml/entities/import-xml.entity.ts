@@ -25,6 +25,10 @@ export class ImportXml {
   status!: string;
 
   @ApiProperty()
+  @Column({ name: 'stored_xml' })
+  storedXml!: boolean;
+
+  @ApiProperty()
   @CreateDateColumn({ name: 'included_at', type: 'timestamptz' })
   includedAt!: Date;
 
