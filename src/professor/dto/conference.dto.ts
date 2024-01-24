@@ -33,6 +33,6 @@ export class ConferenceDto {
   @ApiProperty({ name: 'speciality', type: String, nullable: true })
   speciality?: string;
 
-  @ApiProperty({ name: 'authors', type: String })
-  authors!: string;
+  @ApiProperty({ name: 'authors', type: String, nullable: true })
+  authors?: string;
 }
