@@ -373,7 +373,11 @@ export class ImportXmlService {
     const curriculumAuthors = article[Curriculum.AUTORES] || undefined;
     let authors = '';
 
-    for (let i = 0; i < curriculumAuthors.length; i++) {
+    for (
+      let i = 0;
+      curriculumAuthors !== undefined && i < curriculumAuthors.length;
+      i++
+    ) {
       const quoteName =
         curriculumAuthors[i][Curriculum.ATRIBUTOS][
           Curriculum.NOME_PARA_CITACAO
@@ -392,7 +396,7 @@ export class ImportXmlService {
       year,
       issn,
       journalTitle,
-      authors,
+      authors: authors || undefined,
       bigArea,
       area,
       subArea,
@@ -499,7 +503,7 @@ export class ImportXmlService {
     const bookAuthors = book[Curriculum.AUTORES] || undefined;
     let authors = '';
 
-    for (let i = 0; i < bookAuthors.length; i++) {
+    for (let i = 0; bookAuthors !== undefined && i < bookAuthors.length; i++) {
       const quoteName =
         bookAuthors[i][Curriculum.ATRIBUTOS][Curriculum.NOME_PARA_CITACAO];
       if (i === bookAuthors.length - 1) {
@@ -515,7 +519,7 @@ export class ImportXmlService {
       language,
       year,
       publicationCountry,
-      authors,
+      authors: authors || undefined,
       bigArea,
       area,
       subArea,
@@ -576,8 +580,11 @@ export class ImportXmlService {
 
     const patentAuthors = patent[Curriculum.AUTORES] || undefined;
     let authors = '';
-
-    for (let i = 0; i < patentAuthors.length; i++) {
+    for (
+      let i = 0;
+      patentAuthors !== undefined && i < patentAuthors.length;
+      i++
+    ) {
       const quoteName =
         patentAuthors[i][Curriculum.ATRIBUTOS][Curriculum.NOME_PARA_CITACAO];
       if (i === patentAuthors.length - 1) {
@@ -597,7 +604,7 @@ export class ImportXmlService {
       registryCode,
       depositRegistrationInstitution,
       depositantName,
-      authors,
+      authors: authors || undefined,
       professor,
     };
 
@@ -665,7 +672,12 @@ export class ImportXmlService {
       artisticProduction[Curriculum.AUTORES] || undefined;
     let authors = '';
 
-    for (let i = 0; i < artisticProductionAuthors.length; i++) {
+    for (
+      let i = 0;
+      artisticProductionAuthors !== undefined &&
+      i < artisticProductionAuthors.length;
+      i++
+    ) {
       const quoteName =
         artisticProductionAuthors[i][Curriculum.ATRIBUTOS][
           Curriculum.NOME_PARA_CITACAO
@@ -688,7 +700,7 @@ export class ImportXmlService {
       area,
       subArea,
       speciality,
-      authors,
+      authors: authors || undefined,
       professor,
     };
 
@@ -863,7 +875,11 @@ export class ImportXmlService {
     const curriculumAuthors = conference[Curriculum.AUTORES] || undefined;
     let authors = '';
 
-    for (let i = 0; i < curriculumAuthors.length; i++) {
+    for (
+      let i = 0;
+      curriculumAuthors !== undefined && i < curriculumAuthors.length;
+      i++
+    ) {
       const quoteName =
         curriculumAuthors[i][Curriculum.ATRIBUTOS][
           Curriculum.NOME_PARA_CITACAO
@@ -882,7 +898,7 @@ export class ImportXmlService {
       event,
       proceedings,
       doi,
-      authors,
+      authors: authors || undefined,
       bigArea,
       area,
       subArea,
