@@ -23,6 +23,7 @@ import { Curriculum } from './curriculum.enum';
 import logErrorToDatabase from 'src/utils/exception-filters/log-error';
 import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
 import { extname } from 'path';
+import * as fs from 'fs';
 import extract from 'extract-zip';
 import { QueryRunner } from 'typeorm';
 import { Log } from 'src/utils/exception-filters/log.entity';
@@ -30,6 +31,7 @@ import { ImportXml } from './entities/import-xml.entity';
 import { Status } from 'src/types/enums';
 import { ImportXmlDto } from './dto/import-xml.dto';
 import { PaginationDto } from '../types/pagination.dto';
+import { v4 as uuidv4 } from 'uuid';
 import { AppDataSource } from '.././app.datasource';
 import { BookDto } from '../professor/dto/book.dto';
 import { BookService } from '../professor/services/book/book.service';
@@ -40,6 +42,8 @@ import { ArtisticProductionService } from '../professor/services/artistic-produc
 
 @Injectable()
 export class ImportXmlService {
+  path = require('path');
+
   XML_PATH = process.env.XML_PATH ?? 'downloadedFiles';
 
   constructor(
@@ -87,10 +91,12 @@ export class ImportXmlService {
       }
 
       const xmlDto: ImportXmlDto = {
+        id: importedXmlEntity[i].id,
         name: importedXmlEntity[i].name,
         professor: importedXmlEntity[i].professorName,
         user: importedXmlEntity[i].user,
         status: importedXmlEntity[i].status,
+        storedXml: importedXmlEntity[i].storedXml,
         includedAt: importedXmlEntity[i].includedAt,
         importTime: importTime,
       };
@@ -104,6 +110,51 @@ export class ImportXmlService {
       offset: paginationDto.offset,
       data: importedXmlDto,
     };
+  }
+
+  async findOne(id: string) {
+    return AppDataSource.createQueryBuilder()
+      .select('i')
+      .from(ImportXml, 'i')
+      .where('i.id=:id', { id: id })
+      .getOne();
+  }
+
+  async reprocessXML(id: string) {
+    const importedXml = await this.findOne(id);
+
+    try {
+      if (!importedXml) throw Error('XML not found');
+
+      const filesArray: Array<Express.Multer.File> = [];
+
+      const filePath = this.XML_PATH + '/' + importedXml.name;
+      const normalizedFilePath = this.path.normalize(filePath);
+
+      const fileBuffer = await fs.promises.readFile(normalizedFilePath);
+      const fileStream = fs.createReadStream(normalizedFilePath);
+
+      const file: Express.Multer.File = {
+        fieldname: 'file0',
+        filename: uuidv4(),
+        encoding: '7bit',
+        mimetype: 'application/octet-stream',
+        originalname: importedXml.name,
+        path: normalizedFilePath,
+        destination: normalizedFilePath,
+        size: fs.statSync(normalizedFilePath).size,
+        buffer: fileBuffer,
+        stream: fileStream,
+      };
+      filesArray.push(file);
+      fileStream.close();
+
+      this.enqueueFiles(filesArray, importedXml.user);
+    } catch (error) {
+      throw error;
+    } finally {
+      return importedXml;
+    }
   }
 
   async findXMLDocument(file: Express.Multer.File) {
@@ -168,6 +219,7 @@ export class ImportXmlService {
             `The file could not be renamed. Message: ${error.message}`,
           );
         }
+
         throw Error('The file could not be renamed.');
       }
 
@@ -321,7 +373,11 @@ export class ImportXmlService {
     const curriculumAuthors = article[Curriculum.AUTORES] || undefined;
     let authors = '';
 
-    for (let i = 0; i < curriculumAuthors.length; i++) {
+    for (
+      let i = 0;
+      curriculumAuthors !== undefined && i < curriculumAuthors.length;
+      i++
+    ) {
       const quoteName =
         curriculumAuthors[i][Curriculum.ATRIBUTOS][
           Curriculum.NOME_PARA_CITACAO
@@ -340,7 +396,7 @@ export class ImportXmlService {
       year,
       issn,
       journalTitle,
-      authors,
+      authors: authors || undefined,
       bigArea,
       area,
       subArea,
@@ -447,7 +503,7 @@ export class ImportXmlService {
     const bookAuthors = book[Curriculum.AUTORES] || undefined;
     let authors = '';
 
-    for (let i = 0; i < bookAuthors.length; i++) {
+    for (let i = 0; bookAuthors !== undefined && i < bookAuthors.length; i++) {
       const quoteName =
         bookAuthors[i][Curriculum.ATRIBUTOS][Curriculum.NOME_PARA_CITACAO];
       if (i === bookAuthors.length - 1) {
@@ -463,7 +519,7 @@ export class ImportXmlService {
       language,
       year,
       publicationCountry,
-      authors,
+      authors: authors || undefined,
       bigArea,
       area,
       subArea,
@@ -524,8 +580,11 @@ export class ImportXmlService {
 
     const patentAuthors = patent[Curriculum.AUTORES] || undefined;
     let authors = '';
-
-    for (let i = 0; i < patentAuthors.length; i++) {
+    for (
+      let i = 0;
+      patentAuthors !== undefined && i < patentAuthors.length;
+      i++
+    ) {
       const quoteName =
         patentAuthors[i][Curriculum.ATRIBUTOS][Curriculum.NOME_PARA_CITACAO];
       if (i === patentAuthors.length - 1) {
@@ -545,7 +604,7 @@ export class ImportXmlService {
       registryCode,
       depositRegistrationInstitution,
       depositantName,
-      authors,
+      authors: authors || undefined,
       professor,
     };
 
@@ -613,7 +672,12 @@ export class ImportXmlService {
       artisticProduction[Curriculum.AUTORES] || undefined;
     let authors = '';
 
-    for (let i = 0; i < artisticProductionAuthors.length; i++) {
+    for (
+      let i = 0;
+      artisticProductionAuthors !== undefined &&
+      i < artisticProductionAuthors.length;
+      i++
+    ) {
       const quoteName =
         artisticProductionAuthors[i][Curriculum.ATRIBUTOS][
           Curriculum.NOME_PARA_CITACAO
@@ -636,7 +700,7 @@ export class ImportXmlService {
       area,
       subArea,
       speciality,
-      authors,
+      authors: authors || undefined,
       professor,
     };
 
@@ -811,7 +875,11 @@ export class ImportXmlService {
     const curriculumAuthors = conference[Curriculum.AUTORES] || undefined;
     let authors = '';
 
-    for (let i = 0; i < curriculumAuthors.length; i++) {
+    for (
+      let i = 0;
+      curriculumAuthors !== undefined && i < curriculumAuthors.length;
+      i++
+    ) {
       const quoteName =
         curriculumAuthors[i][Curriculum.ATRIBUTOS][
           Curriculum.NOME_PARA_CITACAO
@@ -830,7 +898,7 @@ export class ImportXmlService {
       event,
       proceedings,
       doi,
-      authors,
+      authors: authors || undefined,
       bigArea,
       area,
       subArea,
@@ -1550,6 +1618,54 @@ export class ImportXmlService {
     return importXml;
   }
 
+  async updateStoredXml(id: string): Promise<void> {
+    const xml: ImportXml | null = await this.findOne(id);
+    if (xml === null) throw Error('XML not found');
+    try {
+      // Set storedXml to false for all XMLs with the same name as the one with the provided id
+      await AppDataSource.createQueryBuilder()
+        .update(ImportXml)
+        .set({ storedXml: false })
+        .where('name=:xmlName AND storedXml = true', {
+          xmlName: xml.name,
+        })
+        .execute();
+
+      // Set storedXml to true for the specific XML with the provided id
+      await AppDataSource.createQueryBuilder()
+        .update(ImportXml)
+        .set({ storedXml: true })
+        .where('id=:xmlId', { xmlId: xml.id })
+        .execute();
+    } catch (error) {
+      console.error('Error updating storedXml:', error);
+      throw error;
+    }
+  }
+
+  generateFilePath = (identifier: string) => {
+    const cleanedIdentifier = identifier
+      .replace('.zip', '')
+      .replace('.xml', '');
+    const normalizedPath = this.path.normalize(
+      `${this.XML_PATH}/${cleanedIdentifier}.xml`,
+    );
+    return normalizedPath;
+  };
+
+  renameFile = (oldPath: string, newPath: string) => {
+    return new Promise((resolve, reject) => {
+      fs.rename(oldPath, newPath, (err) => {
+        if (err) {
+          console.error('Error occurred during file renaming:', err);
+          reject(err);
+        } else {
+          resolve('File renamed successfully.');
+        }
+      });
+    });
+  };
+
   async save(importXmlLog: Log) {
     return await AppDataSource.createQueryBuilder()
       .insert()
@@ -1566,12 +1682,11 @@ export class ImportXmlService {
         const importXml = new ImportXml();
         importXml.id = files[i].filename;
         importXml.name = files[i].originalname;
-        // importXml.originalfilename = files[i].originalname;
-        // importXml.filename = '';
         importXml.user = username;
         importXml.status = Status.PENDING;
         importXml.startedAt = undefined;
         importXml.finishedAt = undefined;
+        importXml.storedXml = true;
 
         await AppDataSource.createQueryBuilder(queryRunner)
           .insert()
@@ -1587,16 +1702,16 @@ export class ImportXmlService {
       await queryRunner.release();
     }
 
-    this.insertDataToDatabase(files, username).catch((err) =>
-      logErrorToDatabase(err, EntityType.XML, undefined),
-    );
+    this.insertDataToDatabase(files, username).catch((err) => {
+      logErrorToDatabase(err, EntityType.XML, undefined);
+    });
   }
 
   async insertDataToDatabase(
     files: Array<Express.Multer.File>,
     username: string,
   ) {
-    const queryRunner = await AppDataSource.createQueryRunner();
+    const queryRunner = AppDataSource.createQueryRunner();
     try {
       // os artigos top
       const journals = await this.journalService.findAll(queryRunner);
@@ -1625,12 +1740,17 @@ export class ImportXmlService {
 
             // se o professor não existir, criamos, se existir podemos usá-lo
             professorDto = this.getProfessorData(json);
-            // renomear com o lattes do professor
 
-            await rename(
-              files[i].path,
-              this.XML_PATH + '/' + professorDto.identifier + '.xml',
-            );
+            const filePath = this.generateFilePath(files[i].originalname);
+            try {
+              // Renomeia o arquivo para o identificador do professor
+              const newFilePath = this.generateFilePath(
+                professorDto.identifier,
+              );
+              await this.renameFile(filePath, newFilePath);
+            } catch (error) {
+              console.error('Error occurred during file operation:', error);
+            }
 
             const filename = professorDto.identifier + '.xml';
 
@@ -1720,6 +1840,8 @@ export class ImportXmlService {
             );
             throw err;
           } finally {
+            // Atualiza o storedXml
+            this.updateStoredXml(files[i].filename);
             await this.save(importXmlLog);
           }
           await queryRunner.commitTransaction();
