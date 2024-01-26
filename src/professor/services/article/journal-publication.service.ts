@@ -10,10 +10,7 @@ import { AppDataSource } from 'src/app.datasource';
 
 @Injectable()
 export class JournalPublicationService {
-  async findOne(
-    journalPublicationDto: JournalPublicationDto,
-    queryRunner: QueryRunner | undefined,
-  ) {
+  async findOne(journalPublicationDto: JournalPublicationDto, queryRunner: QueryRunner | undefined) {
     try {
       return await AppDataSource.createQueryBuilder(queryRunner)
         .select('a')
@@ -28,11 +25,7 @@ export class JournalPublicationService {
     }
   }
 
-  async getQualisAndJournal(
-    journalPublication: JournalPublication,
-    journals: Journal[],
-    queryRunner: QueryRunner,
-  ) {
+  async getQualisAndJournal(journalPublication: JournalPublication, journals: Journal[], queryRunner: QueryRunner) {
     try {
       for (let i = 0; i < journals.length; i++) {
         const journal = journals[i];
@@ -54,27 +47,18 @@ export class JournalPublicationService {
         }
       }
     } catch (error) {
-      await logErrorToDatabase(
-        error,
-        EntityType.JOURNAL_PUBLICATION,
-        undefined,
-      );
+      await logErrorToDatabase(error, EntityType.JOURNAL_PUBLICATION, undefined);
       throw error;
     }
   }
 
-  async createJournalPublication(
-    journalPublicationDto: JournalPublicationDto,
-    queryRunner: QueryRunner,
-  ) {
+  async createJournalPublication(journalPublicationDto: JournalPublicationDto, queryRunner: QueryRunner) {
     if (
       !journalPublicationDto.year ||
       !+journalPublicationDto.year ||
       journalPublicationDto.year === JournalPublicationEnum.RINT
     )
-      throw new Error(
-        JournalPublicationEnum.JOURNAL_PUBLICATION_NAN_YEAR_ERROR,
-      );
+      throw new Error(JournalPublicationEnum.JOURNAL_PUBLICATION_NAN_YEAR_ERROR);
 
     try {
       const journalPublication = new JournalPublication();
@@ -89,6 +73,10 @@ export class JournalPublicationService {
       journalPublication.area = journalPublicationDto.area;
       journalPublication.subArea = journalPublicationDto.subArea;
       journalPublication.speciality = journalPublicationDto.speciality;
+      journalPublication.bigArea2 = journalPublicationDto.bigArea2;
+      journalPublication.area2 = journalPublicationDto.area2;
+      journalPublication.subArea2 = journalPublicationDto.subArea2;
+      journalPublication.speciality2 = journalPublicationDto.speciality2;
 
       await AppDataSource.createQueryBuilder(queryRunner)
         .insert()
@@ -98,11 +86,7 @@ export class JournalPublicationService {
 
       return journalPublication;
     } catch (error) {
-      await logErrorToDatabase(
-        error,
-        EntityType.JOURNAL_PUBLICATION,
-        undefined,
-      );
+      await logErrorToDatabase(error, EntityType.JOURNAL_PUBLICATION, undefined);
       throw error;
     }
   }

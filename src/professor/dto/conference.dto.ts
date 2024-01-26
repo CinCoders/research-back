@@ -18,13 +18,16 @@ export class ConferenceDto {
   @ApiProperty({ name: 'doi', type: String })
   doi?: string;
 
+  @ApiProperty({ name: 'nature', type: String })
+  nature?: string;
+
   @ApiProperty({ name: 'proceedings', type: String })
   proceedings!: string;
 
   @ApiProperty({ name: 'bigArea', type: String, nullable: true })
   bigArea?: string;
 
-  @ApiProperty({ name: 'journaarealTitle', type: String, nullable: true })
+  @ApiProperty({ name: 'area', type: String, nullable: true })
   area?: string;
 
   @ApiProperty({ name: 'subArea', type: String, nullable: true })
@@ -32,6 +35,18 @@ export class ConferenceDto {
 
   @ApiProperty({ name: 'speciality', type: String, nullable: true })
   speciality?: string;
+
+  @ApiProperty({ name: 'bigArea2', type: String, nullable: true })
+  bigArea2?: string;
+
+  @ApiProperty({ name: 'area2', type: String, nullable: true })
+  area2?: string;
+
+  @ApiProperty({ name: 'subArea2', type: String, nullable: true })
+  subArea2?: string;
+
+  @ApiProperty({ name: 'speciality2', type: String, nullable: true })
+  speciality2?: string;
 
   @ApiProperty({ name: 'authors', type: String, nullable: true })
   authors?: string;

@@ -30,6 +30,18 @@ export class BookDto {
   @ApiProperty({ name: 'speciality', type: String, nullable: true })
   speciality?: string;
 
+  @ApiProperty({ name: 'bigArea2', type: String, nullable: true })
+  bigArea2?: string;
+
+  @ApiProperty({ name: 'area2', type: String, nullable: true })
+  area2?: string;
+
+  @ApiProperty({ name: 'subArea2', type: String, nullable: true })
+  subArea2?: string;
+
+  @ApiProperty({ name: 'speciality2', type: String, nullable: true })
+  speciality2?: string;
+
   @ApiProperty({ name: 'authors', type: String, nullable: true })
   authors?: string;
 }
