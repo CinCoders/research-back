@@ -29,6 +29,7 @@ import { CreateScholarship1703094449669 } from './database/migrations/1703094449
 import { alterTableImportXml1705606892154 } from './database/migrations/1705606892154-alterTableImportXml';
 import { Translation } from './professor/entities/translation.entity';
 import { CreateTranslationAlterConferencePublication1706292498583 } from './database/migrations/1706292498583-createTranslationAlterConferencePublication';
+import { AlterConferencePubAndJournalPubAndBook1706298287607 } from './database/migrations/1706298287607-alterConferencePubAndJournalPubAndBook';
 
 config();
 
@@ -74,5 +75,6 @@ export const AppDataSource = new DataSource({
     CreateScholarship1703094449669,
     alterTableImportXml1705606892154,
     CreateTranslationAlterConferencePublication1706292498583,
+    AlterConferencePubAndJournalPubAndBook1706298287607,
   ],
 });
