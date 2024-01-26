@@ -36,12 +36,12 @@ export class BookService {
       book.area = bookDto.area;
       book.subArea = bookDto.subArea;
       book.speciality = bookDto.speciality;
+      book.bigArea2 = bookDto.bigArea2;
+      book.area2 = bookDto.area2;
+      book.subArea2 = bookDto.subArea2;
+      book.speciality2 = bookDto.speciality2;
 
-      await AppDataSource.createQueryBuilder(queryRunner)
-        .insert()
-        .into(Book)
-        .values(book)
-        .execute();
+      await AppDataSource.createQueryBuilder(queryRunner).insert().into(Book).values(book).execute();
 
       return book;
     } catch (error) {
