@@ -27,6 +27,8 @@ import { CreateBookAndPatentAndArtisticProduction1702905182255 } from './databas
 import { Scholarship } from './scholarship/entities/scholarship.entity';
 import { CreateScholarship1703094449669 } from './database/migrations/1703094449669-createScholarship';
 import { alterTableImportXml1705606892154 } from './database/migrations/1705606892154-alterTableImportXml';
+import { Translation } from './professor/entities/translation.entity';
+import { CreateTranslationAlterConferencePublication1706292498583 } from './database/migrations/1706292498583-createTranslationAlterConferencePublication';
 
 config();
 
@@ -54,6 +56,7 @@ export const AppDataSource = new DataSource({
     Journal,
     Log,
     Book,
+    Translation,
     Patent,
     ArtisticProduction,
     Scholarship,
@@ -70,5 +73,6 @@ export const AppDataSource = new DataSource({
     CreateBookAndPatentAndArtisticProduction1702905182255,
     CreateScholarship1703094449669,
     alterTableImportXml1705606892154,
+    CreateTranslationAlterConferencePublication1706292498583,
   ],
 });

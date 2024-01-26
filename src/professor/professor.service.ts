@@ -282,6 +282,12 @@ export class ProfessorService {
 
       await AppDataSource.createQueryBuilder(queryRunner)
         .delete()
+        .from(Translation)
+        .where('professor_id=:id', { id: professor.id })
+        .execute();
+
+      await AppDataSource.createQueryBuilder(queryRunner)
+        .delete()
         .from(ArtisticProduction)
         .where('professor_id=:id', { id: professor.id })
         .execute();
