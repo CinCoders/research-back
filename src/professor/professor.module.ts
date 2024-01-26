@@ -18,17 +18,11 @@ import { PublicationsModule } from 'src/publications/publications.module';
 import { BookService } from './services/book/book.service';
 import { PatentService } from './services/patent/patent.service';
 import { ArtisticProductionService } from './services/artistic-production/artistic-production.service';
+import { TranslationService } from './services/translation/translation/translation.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Professor,
-      JournalPublication,
-      ConferencePublication,
-      Advisee,
-      Financier,
-      Project,
-    ]),
+    TypeOrmModule.forFeature([Professor, JournalPublication, ConferencePublication, Advisee, Financier, Project]),
     PublicationsModule,
   ],
   controllers: [ProfessorController],
@@ -41,6 +35,7 @@ import { ArtisticProductionService } from './services/artistic-production/artist
     ProjectService,
     StringSimilarityService,
     BookService,
+    TranslationService,
     PatentService,
     ArtisticProductionService,
   ],
@@ -52,6 +47,7 @@ import { ArtisticProductionService } from './services/artistic-production/artist
     FinancierService,
     ProjectService,
     BookService,
+    TranslationService,
     PatentService,
     ArtisticProductionService,
   ],

@@ -21,6 +21,7 @@ import { Book } from './entities/book.entity';
 import { Patent } from './entities/patent.entity';
 import { ArtisticProduction } from './entities/artisticProduction.entity';
 import { ProfessorTableDto } from './dto/professor-table.dto';
+import { Translation } from './entities/translation.entity';
 
 @Injectable()
 export class ProfessorService {
@@ -277,6 +278,12 @@ export class ProfessorService {
       await AppDataSource.createQueryBuilder(queryRunner)
         .delete()
         .from(Patent)
+        .where('professor_id=:id', { id: professor.id })
+        .execute();
+
+      await AppDataSource.createQueryBuilder(queryRunner)
+        .delete()
+        .from(Translation)
         .where('professor_id=:id', { id: professor.id })
         .execute();
 
