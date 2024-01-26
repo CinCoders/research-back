@@ -21,6 +21,7 @@ import { Book } from './entities/book.entity';
 import { Patent } from './entities/patent.entity';
 import { ArtisticProduction } from './entities/artisticProduction.entity';
 import { ProfessorTableDto } from './dto/professor-table.dto';
+import { Translation } from './entities/translation.entity';
 
 @Injectable()
 export class ProfessorService {
