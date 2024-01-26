@@ -1,12 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Journal } from '../../qualis/entities/journal.entity';
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Professor } from './professor.entity';
 
 @ApiTags('JournalPublication')
@@ -20,7 +14,7 @@ export class JournalPublication {
   id!: number;
 
   @ApiProperty({ name: 'professor', type: Number })
-  @ManyToOne(() => Professor, (professor) => professor.journalPublication)
+  @ManyToOne(() => Professor, professor => professor.journalPublication)
   @JoinColumn({ name: 'professor_id' })
   professor!: Professor;
 
@@ -72,6 +66,22 @@ export class JournalPublication {
   @ApiProperty({ name: 'speciality', type: String })
   @Column({ name: 'speciality', nullable: true })
   speciality?: string;
+
+  @ApiProperty({ name: 'bigArea2', type: String })
+  @Column({ name: 'bigArea2', nullable: true })
+  bigArea2?: string;
+
+  @ApiProperty({ name: 'area2', type: String })
+  @Column({ name: 'area2', nullable: true })
+  area2?: string;
+
+  @ApiProperty({ name: 'subArea2', type: String })
+  @Column({ name: 'subArea2', nullable: true })
+  subArea2?: string;
+
+  @ApiProperty({ name: 'speciality2', type: String })
+  @Column({ name: 'speciality2', nullable: true })
+  speciality2?: string;
 
   @ApiProperty({ name: 'authors', type: String, nullable: true })
   @Column({ name: 'authors', length: 1500, nullable: true })

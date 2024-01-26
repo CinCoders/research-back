@@ -71,6 +71,22 @@ export class ConferencePublication {
   @Column({ name: 'speciality', nullable: true })
   speciality?: string;
 
+  @ApiProperty({ name: 'bigArea2', type: String })
+  @Column({ name: 'bigArea2', nullable: true })
+  bigArea2?: string;
+
+  @ApiProperty({ name: 'area2', type: String })
+  @Column({ name: 'area2', nullable: true })
+  area2?: string;
+
+  @ApiProperty({ name: 'subArea2', type: String })
+  @Column({ name: 'subArea2', nullable: true })
+  subArea2?: string;
+
+  @ApiProperty({ name: 'speciality2', type: String })
+  @Column({ name: 'speciality2', nullable: true })
+  speciality2?: string;
+
   @ApiProperty({ name: 'authors', type: String })
   @Column({ name: 'authors', length: 1500, nullable: true })
   authors?: string;

@@ -25,6 +25,10 @@ export class ConferencePublicationService {
     conferencePublication.area = conferenceDto.area;
     conferencePublication.subArea = conferenceDto.subArea;
     conferencePublication.speciality = conferenceDto.speciality;
+    conferencePublication.bigArea2 = conferenceDto.bigArea2;
+    conferencePublication.area2 = conferenceDto.area2;
+    conferencePublication.subArea2 = conferenceDto.subArea2;
+    conferencePublication.speciality2 = conferenceDto.speciality2;
     conferencePublication.nature = conferenceDto.nature;
 
     await AppDataSource.createQueryBuilder(queryRunner)
