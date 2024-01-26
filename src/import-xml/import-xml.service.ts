@@ -306,6 +306,26 @@ export class ImportXmlService {
         Curriculum.NOME_DA_ESPECIALIDADE
       ] || undefined;
 
+    const bigArea2 =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const area2 =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const subArea2 =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const speciality2 =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_ESPECIALIDADE
+      ] || undefined;
+
     const title = article[Curriculum.DADOS_BASICOS_DO_ARTIGO][0][Curriculum.ATRIBUTOS][Curriculum.TITULO_DO_ARTIGO];
     const doi = article[Curriculum.DADOS_BASICOS_DO_ARTIGO][0][Curriculum.ATRIBUTOS][Curriculum.DOI];
     const year = article[Curriculum.DADOS_BASICOS_DO_ARTIGO][0][Curriculum.ATRIBUTOS][Curriculum.ANO_DO_ARTIGO];
@@ -338,6 +358,10 @@ export class ImportXmlService {
       area,
       subArea,
       speciality,
+      bigArea2,
+      area2,
+      subArea2,
+      speciality2,
     };
 
     return articleDto;
@@ -386,6 +410,26 @@ export class ImportXmlService {
         Curriculum.NOME_DA_ESPECIALIDADE
       ] || undefined;
 
+    const bigArea2 =
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const area2 =
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const subArea2 =
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const speciality2 =
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_ESPECIALIDADE
+      ] || undefined;
+
     const title =
       book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[0][Curriculum.ATRIBUTOS]?.[Curriculum.TITULO_DO_LIVRO] || undefined;
 
@@ -420,6 +464,10 @@ export class ImportXmlService {
       area,
       subArea,
       speciality,
+      bigArea2,
+      area2,
+      subArea2,
+      speciality2,
     };
 
     return bookDto;
@@ -762,6 +810,26 @@ export class ImportXmlService {
         Curriculum.NOME_DA_ESPECIALIDADE
       ] || undefined;
 
+    const bigArea2 =
+      conference[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const area2 =
+      conference[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const subArea2 =
+      conference[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] || undefined;
+
+    const speciality2 =
+      conference[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_2]?.[0][Curriculum.ATRIBUTOS]?.[
+        Curriculum.NOME_DA_ESPECIALIDADE
+      ] || undefined;
+
     const title =
       conference[Curriculum.DADOS_BASICOS_DO_TRABALHO][0][Curriculum.ATRIBUTOS][Curriculum.TITULO_DO_TRABALHO];
     const year = conference[Curriculum.DADOS_BASICOS_DO_TRABALHO][0][Curriculum.ATRIBUTOS][Curriculum.ANO_DO_TRABALHO];
@@ -800,6 +868,10 @@ export class ImportXmlService {
       area,
       subArea,
       speciality,
+      bigArea2,
+      area2,
+      subArea2,
+      speciality2,
       nature,
     };
 
