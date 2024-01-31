@@ -30,6 +30,7 @@ import { alterTableImportXml1705606892154 } from './database/migrations/17056068
 import { Translation } from './professor/entities/translation.entity';
 import { CreateTranslationAlterConferencePublication1706292498583 } from './database/migrations/1706292498583-createTranslationAlterConferencePublication';
 import { AlterConferencePubAndJournalPubAndBook1706298287607 } from './database/migrations/1706298287607-alterConferencePubAndJournalPubAndBook';
+import { AlterPatentCategoryToNullable1706711383114 } from './database/migrations/1706711383114-migrations';
 
 config();
 
@@ -76,5 +77,6 @@ export const AppDataSource = new DataSource({
     alterTableImportXml1705606892154,
     CreateTranslationAlterConferencePublication1706292498583,
     AlterConferencePubAndJournalPubAndBook1706298287607,
+    AlterPatentCategoryToNullable1706711383114,
   ],
 });
