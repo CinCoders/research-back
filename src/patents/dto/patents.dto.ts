@@ -2,35 +2,35 @@ import { ApiProperty, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('PatentsDto')
 export class PatentsDto {
-  @ApiProperty({ name: 'id', type: Number })
-  id!: number;
-
   @ApiProperty({ name: 'professorId', required: false, type: Number })
   professorId?: number;
 
   @ApiProperty({ name: 'professorName', required: false, type: String })
   professorName?: string;
 
-  @ApiProperty({ name: 'title', type: String })
-  title!: string;
-
-  @ApiProperty({ name: 'country', type: String })
-  country!: string;
-
   @ApiProperty({ name: 'year', required: false, type: Number })
   year?: number;
 
-  @ApiProperty({ name: 'category', type: String })
-  category!: string;
+  @ApiProperty({ name: 'totalInventionPatents', type: Number })
+  totalInventionPatents!: number;
 
-  @ApiProperty({ name: 'patentType', type: String })
-  patentType!: string;
+  @ApiProperty({ name: 'totalUtilityModelPatents', type: Number })
+  totalUtilityModelPatents!: number;
 
-  @ApiProperty({ name: 'registryCode', type: String })
-  registryCode!: string;
+  @ApiProperty({ name: 'totalDepositPatents', type: Number })
+  totalDepositPatents!: number;
 
-  @ApiProperty({ name: 'authors', type: String })
-  authors!: string;
+  @ApiProperty({ name: 'totalGrantPatents', type: Number })
+  totalGrantPatents!: number;
+
+  @ApiProperty({ name: 'totalLicensePatents', type: Number })
+  totalLicensePatents!: number;
+
+  @ApiProperty({ name: 'brazilianPatents', type: Number })
+  brazilianPatents!: number;
+
+  @ApiProperty({ name: 'internationalPatents', type: Number })
+  internationalPatents!: number;
 
   @ApiProperty({ name: 'total', type: Number })
   total!: number;

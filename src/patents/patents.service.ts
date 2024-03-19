@@ -18,34 +18,64 @@ export class PatentsService {
       ${groupByProfessor ? 'p.name as "professorName",' : ''}
       ${groupByYear ? 'pat."developmentYear" as year,' : ''}
       COUNT(p.id) as total,
-      pat.id as "id",
-      pat.title as "title",
-      pat.country as "country",
-      pat.category as "category",
-      pat."patentType" as "patentType",
-      pat."registryCode" as "registryCode",
-      pat.authors as "authors"
-    FROM professor p
+      SUM(CASE WHEN pat."patentType" = 'PRIVILEGIO_DE_INOVACAO_PI' THEN 1 ELSE 0 END) as "totalInventionPatents",
+    SUM(CASE WHEN pat."patentType" = 'MODELO_DE_UTILIDADE_MU' THEN 1 ELSE 0 END) as "totalUtilityModelPatents",
+    SUM(CASE WHEN pat."situationStatus" = 'Depósito' THEN 1 ELSE 0 END) as "totalDepositPatents",
+    SUM(CASE WHEN pat."situationStatus" = 'Concessão' THEN 1 ELSE 0 END) as "totalGrantPatents",
+    SUM(CASE WHEN pat."situationStatus" = 'Licenciamento' THEN 1 ELSE 0 END) as "totalLicensePatents",
+    SUM(CASE WHEN pat."country" = 'Brasil' THEN 1 ELSE 0 END) as "brazilianPatents",
+    SUM(CASE WHEN pat."country" != 'Brasil' THEN 1 ELSE 0 END) as "internationalPatents"
+   FROM professor p
     LEFT JOIN patent pat ON p.id = pat.professor_id
     WHERE pat."developmentYear" IS NOT NULL
     ${
       groupByProfessor && groupByYear
-        ? 'GROUP BY p.id, p.name, pat."developmentYear", pat.id ORDER BY p.name ASC, pat."developmentYear" DESC;'
+        ? 'GROUP BY p.id, p.name, pat."developmentYear" ORDER BY p.name ASC, pat."developmentYear" DESC;'
         : ''
     }
     ${
       groupByProfessor && !groupByYear
-        ? 'GROUP BY p.id, p.name, pat.id ORDER BY p.name ASC;'
+        ? 'GROUP BY p.id, p.name ORDER BY p.name ASC;'
         : ''
     }
     ${
       !groupByProfessor && groupByYear
-        ? 'GROUP BY pat."developmentYear", pat.id ORDER BY pat."developmentYear" DESC;'
+        ? 'GROUP BY pat."developmentYear" ORDER BY pat."developmentYear" DESC;'
         : ''
     }
   `);
-
-    console.log(result);
+    //   const result: PatentsDto[] = await queryRunner.query(`
+    //   SELECT
+    //     ${groupByProfessor ? 'p.id as "professorId",' : ''}
+    //     ${groupByProfessor ? 'p.name as "professorName",' : ''}
+    //     ${groupByYear ? 'pat."developmentYear" as year,' : ''}
+    //     COUNT(p.id) as total,
+    //     pat.id as "id",
+    //     pat.title as "title",
+    //     pat.country as "country",
+    //     pat.category as "category",
+    //     pat."patentType" as "patentType",
+    //     pat."registryCode" as "registryCode",
+    //     pat.authors as "authors"
+    //   FROM professor p
+    //   LEFT JOIN patent pat ON p.id = pat.professor_id
+    //   WHERE pat."developmentYear" IS NOT NULL
+    //   ${
+    //     groupByProfessor && groupByYear
+    //       ? 'GROUP BY p.id, p.name, pat."developmentYear" ORDER BY p.name ASC, pat."developmentYear" DESC;'
+    //       : ''
+    //   }
+    //   ${
+    //     groupByProfessor && !groupByYear
+    //       ? 'GROUP BY p.id, p.name, pat.id ORDER BY p.name ASC;'
+    //       : ''
+    //   }
+    //   ${
+    //     !groupByProfessor && groupByYear
+    //       ? 'GROUP BY pat."developmentYear", pat.id ORDER BY pat."developmentYear" DESC;'
+    //       : ''
+    //   }
+    // `);
     await queryRunner.release();
 
     return result;

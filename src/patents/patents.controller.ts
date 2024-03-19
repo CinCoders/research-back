@@ -26,7 +26,6 @@ export class PatentsController {
     @Query('groupByProfessor', ParseBoolPipe) groupByProfessor: boolean,
     @Query('groupByYear', ParseBoolPipe) groupByYear: boolean,
   ): Promise<PatentsDto[]> {
-    console.log('gothere');
     return await this.patentsService.get(groupByProfessor, groupByYear);
   }
 }
