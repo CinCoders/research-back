@@ -22,6 +22,7 @@ import { Patent } from './entities/patent.entity';
 import { ArtisticProduction } from './entities/artisticProduction.entity';
 import { ProfessorTableDto } from './dto/professor-table.dto';
 import { Translation } from './entities/translation.entity';
+import { ProfessorPatentDto } from 'src/patents/dto/professor-patent.dto';
 
 @Injectable()
 export class ProfessorService {
@@ -247,6 +248,29 @@ export class ProfessorService {
     });
 
     return professorProjects;
+  }
+
+  async getPatents(id: string) {
+    const patents = await AppDataSource.createQueryBuilder()
+      .select('pt')
+      .from(Patent, 'pt')
+      .where('pt.professor_id=:id', { id: id })
+      .orderBy('pt.developmentYear', 'DESC')
+      .getMany();
+
+    const professorPatentsDto: ProfessorPatentDto[] = patents.map((patent) => {
+      const professorPatentDto: ProfessorPatentDto = new ProfessorPatentDto();
+      professorPatentDto.id = patent.id;
+      professorPatentDto.title = patent.title;
+      professorPatentDto.authors = patent.authors || '';
+      professorPatentDto.developmentYear = patent.developmentYear || '';
+      professorPatentDto.country = patent.country;
+      professorPatentDto.category = patent.category;
+      professorPatentDto.patentType = patent.patentType || '';
+      professorPatentDto.registryCode = patent.registryCode || '';
+      return professorPatentDto;
+    });
+    return professorPatentsDto;
   }
 
   async clearProfessorData(professor: Professor, queryRunner: QueryRunner) {
