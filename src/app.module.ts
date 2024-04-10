@@ -18,11 +18,13 @@ import {
 import { APP_GUARD } from '@nestjs/core';
 import { AppDataSource } from './app.datasource';
 import { ScholarshipModule } from './scholarship/scholarship.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot(AppDataSource.options),
+    ScheduleModule.forRoot(),
     ImportXmlModule,
     ProfessorModule,
     QualisModule,
