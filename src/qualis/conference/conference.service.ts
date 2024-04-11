@@ -7,6 +7,8 @@ import { Log } from 'src/utils/exception-filters/log.entity';
 import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
 import { AppDataSource } from 'src/app.datasource';
 import createLog from 'src/utils/exception-filters/log-utils';
+import { RefreshConferenceDto } from '../dto/refresh-conference.dto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class ConferenceService {
@@ -86,6 +88,53 @@ export class ConferenceService {
     `,
         `${id}`,
       );
+    }
+  }
+
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
+    name: 'refresh_conferences',
+    timeZone: 'America/Recife',
+  })
+  async refresh() {
+    const refreshConferenceDtos: RefreshConferenceDto[] = [
+      {
+        acronym: 'SBES',
+        name: 'Brazilian Symposium on Software Engineering',
+        qualis: 'A1',
+      },
+      {
+        acronym: 'SBC',
+        name: 'Brazilian Computer Society',
+        qualis: 'A2',
+      },
+      {
+        acronym: 'CBSoft',
+        name: 'Brazilian Conference on Software',
+        qualis: 'B1',
+      },
+    ];
+    const email = 'cron_job@cin.ufpe.br';
+    for (const refreshConferenceDto of refreshConferenceDtos) {
+      const conference = await AppDataSource.manager.findOne(Conference, {
+        where: { name: refreshConferenceDto.name },
+      });
+      if (!conference) {
+        console.log('Creating conference');
+        await this.create(
+          { ...refreshConferenceDto, isTop: false, official: true },
+          email,
+        );
+      } else if (
+        conference.acronym !== refreshConferenceDto.acronym ||
+        conference.qualis !== refreshConferenceDto.qualis
+      ) {
+        console.log('Updating conference');
+        await this.update(
+          conference.id,
+          { ...refreshConferenceDto, id: conference.id },
+          email,
+        );
+      }
     }
   }
 }

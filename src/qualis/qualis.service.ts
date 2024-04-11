@@ -7,6 +7,7 @@ import { Log } from 'src/utils/exception-filters/log.entity';
 import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
 import { AppDataSource } from 'src/app.datasource';
 import createLog from 'src/utils/exception-filters/log-utils';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class JournalService {
@@ -87,5 +88,13 @@ export class JournalService {
 
   remove(id: number) {
     return `This action removes a #${id} journal`;
+  }
+
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
+    name: 'refresh_journals',
+    timeZone: 'America/Recife',
+  })
+  async refresh() {
+    console.log('Refreshing journals');
   }
 }
