@@ -9,6 +9,8 @@ import { AppDataSource } from 'src/app.datasource';
 import createLog from 'src/utils/exception-filters/log-utils';
 import { RefreshConferenceDto } from '../dto/refresh-conference.dto';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import Papa from 'papaparse';
+import axios from 'axios';
 
 @Injectable()
 export class ConferenceService {
@@ -91,50 +93,64 @@ export class ConferenceService {
     }
   }
 
-  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
+  // CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT
+  @Cron(new Date(Date.now() + 2 * 1000), {
     name: 'refresh_conferences',
     timeZone: 'America/Recife',
   })
   async refresh() {
-    const refreshConferenceDtos: RefreshConferenceDto[] = [
-      {
-        acronym: 'SBES',
-        name: 'Brazilian Symposium on Software Engineering',
-        qualis: 'A1',
-      },
-      {
-        acronym: 'SBC',
-        name: 'Brazilian Computer Society',
-        qualis: 'A2',
-      },
-      {
-        acronym: 'CBSoft',
-        name: 'Brazilian Conference on Software',
-        qualis: 'B1',
-      },
-    ];
     const email = 'cron_job@cin.ufpe.br';
-    for (const refreshConferenceDto of refreshConferenceDtos) {
-      const conference = await AppDataSource.manager.findOne(Conference, {
-        where: { name: refreshConferenceDto.name },
-      });
-      if (!conference) {
-        console.log('Creating conference');
-        await this.create(
-          { ...refreshConferenceDto, isTop: false, official: true },
-          email,
-        );
-      } else if (
-        conference.acronym !== refreshConferenceDto.acronym ||
-        conference.qualis !== refreshConferenceDto.qualis
-      ) {
-        console.log('Updating conference');
-        await this.update(
-          conference.id,
-          { ...refreshConferenceDto, id: conference.id },
-          email,
-        );
+    const csvUrl =
+      'https://docs.google.com/spreadsheets/d/' +
+      process.env.CONFERENCES_SHEET_ID +
+      '/gviz/tq?tqx=out:csv&sheet=Qualis';
+
+    const headers = new Map<string, string>([
+      ['sigla', 'acronym'],
+      ['Qualis_Final', 'qualis'],
+      ['evento', 'name'],
+    ]);
+    try {
+      const response = await axios.get(csvUrl);
+      const refreshConferenceDtos: RefreshConferenceDto[] = Papa.parse(
+        response.data,
+        {
+          header: true,
+          transformHeader: (header) => headers.get(header) || header,
+        },
+      ).data as RefreshConferenceDto[];
+      console.log(refreshConferenceDtos);
+
+      for (const refreshConferenceDto of refreshConferenceDtos) {
+        const conference = await AppDataSource.manager.findOne(Conference, {
+          where: {
+            acronym: refreshConferenceDto.acronym,
+          },
+        });
+        if (!conference) {
+          console.log('Creating conference');
+          // await this.create(
+          //   {
+          //     ...refreshConferenceDto,
+          //     isTop: false,
+          //     official: true,
+          //   },
+          //   email,
+          // );
+        } else if (
+          refreshConferenceDto.name !== conference.name ||
+          refreshConferenceDto.qualis !== conference.qualis
+        ) {
+          console.log('Updating conference');
+          // await this.update(
+          //   conference.id,
+          //   { ...refreshConferenceDto, id: conference.id },
+          //   email,
+          // );
+        }
       }
+    } catch (error) {
+      throw new Error(`Error refreshing conferences: ${error}`);
     }
   }
 }
