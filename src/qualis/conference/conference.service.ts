@@ -128,25 +128,29 @@ export class ConferenceService {
           },
         });
         if (!conference) {
-          console.log('Creating conference');
-          // await this.create(
-          //   {
-          //     ...refreshConferenceDto,
-          //     isTop: false,
-          //     official: true,
-          //   },
-          //   email,
-          // );
+          console.log(
+            `Creating conference ${refreshConferenceDto.acronym}-${refreshConferenceDto.name}`,
+          );
+          await this.create(
+            {
+              ...refreshConferenceDto,
+              isTop: false,
+              official: true,
+            },
+            email,
+          );
         } else if (
           refreshConferenceDto.name !== conference.name ||
           refreshConferenceDto.qualis !== conference.qualis
         ) {
-          console.log('Updating conference');
-          // await this.update(
-          //   conference.id,
-          //   { ...refreshConferenceDto, id: conference.id },
-          //   email,
-          // );
+          console.log(
+            `Updating conference ${conference.acronym}-${conference.name}-${conference.qualis} to ${refreshConferenceDto.acronym}-${refreshConferenceDto.name}-${refreshConferenceDto.qualis}`,
+          );
+          await this.update(
+            conference.id,
+            { ...refreshConferenceDto, id: conference.id },
+            email,
+          );
         }
       }
     } catch (error) {
