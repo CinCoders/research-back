@@ -114,8 +114,8 @@ export class ConferenceService {
     }
   }
 
-  @Cron(new Date(Date.now() + 1000 * 3), {
-    // @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
+  // @Cron(new Date(Date.now() + 1000 * 3), {
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
     name: 'refresh_conferences',
     timeZone: 'America/Recife',
   })
