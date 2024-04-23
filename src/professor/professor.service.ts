@@ -332,6 +332,7 @@ export class ProfessorService {
 
       await queryRunner.commitTransaction();
       createLog(
+        queryRunner,
         EntityType.PROFESSOR,
         `Type: Delete
       Email: ${email}

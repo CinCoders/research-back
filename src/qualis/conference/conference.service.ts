@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { QueryRunner } from 'typeorm';
+import { EntityManager, QueryRunner } from 'typeorm';
 import { CreateConferenceDto } from '../dto/create-conference.dto';
 import { UpdateConferenceDto } from '../dto/update-conference.dto';
 import { Conference } from '../entities/conference.entity';
@@ -24,7 +24,18 @@ export class ConferenceService {
     return conference;
   }
 
-  async create(createConferenceDto: CreateConferenceDto, email: string) {
+  async create(
+    queryRunner: QueryRunner | undefined,
+    createConferenceDto: CreateConferenceDto,
+    email: string,
+  ) {
+    let manager: EntityManager;
+    if (!queryRunner) {
+      manager = AppDataSource.manager;
+    } else {
+      manager = queryRunner.manager;
+    }
+
     const conference = new Conference();
     conference.acronym = createConferenceDto.acronym;
     conference.name = createConferenceDto.name;
@@ -35,7 +46,9 @@ export class ConferenceService {
     const conferenceLog = new Log();
 
     if (createConferenceDto.derivedFromId) {
-      const derivedFrom = await this.findOne(createConferenceDto.derivedFromId);
+      const derivedFrom = await manager.findOne(Conference, {
+        where: { id: createConferenceDto.derivedFromId },
+      });
       if (derivedFrom) conference.derivedFrom = derivedFrom;
     }
 
@@ -49,9 +62,9 @@ export class ConferenceService {
     DerivedFrom: ${conference.derivedFrom?.id}
     `;
 
-    await AppDataSource.manager.save(conferenceLog);
+    await manager.save(conferenceLog);
 
-    return await AppDataSource.createQueryBuilder()
+    return await AppDataSource.createQueryBuilder(queryRunner)
       .insert()
       .into(Conference)
       .values(conference)
@@ -70,18 +83,26 @@ export class ConferenceService {
   }
 
   async update(
+    queryRunner: QueryRunner | undefined,
     id: number,
     updateConferenceDto: UpdateConferenceDto,
     email: string,
   ) {
-    const conference = await AppDataSource.manager.findOne(Conference, {
+    let manager: EntityManager;
+    if (!queryRunner) {
+      manager = AppDataSource.manager;
+    } else {
+      manager = queryRunner.manager;
+    }
+    const conference = await manager.findOne(Conference, {
       where: { id: id },
     });
 
     if (conference) {
       Object.assign(conference, updateConferenceDto);
-      await AppDataSource.manager.save(conference);
+      await manager.save(conference);
       createLog(
+        queryRunner,
         EntityType.CONFERENCE,
         `
       Type: Update
@@ -93,13 +114,15 @@ export class ConferenceService {
     }
   }
 
-  // CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT
-  @Cron(new Date(Date.now() + 2 * 1000), {
+  @Cron(new Date(Date.now() + 1000 * 3), {
+    // @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
     name: 'refresh_conferences',
     timeZone: 'America/Recife',
   })
-  async refresh() {
-    const email = 'cron_job@cin.ufpe.br';
+  async refresh(email: string) {
+    if (!email) {
+      email = 'cron_job@cin.ufpe.br';
+    }
     const csvUrl =
       'https://docs.google.com/spreadsheets/d/' +
       process.env.CONFERENCES_SHEET_ID +
@@ -110,6 +133,9 @@ export class ConferenceService {
       ['Qualis_Final', 'qualis'],
       ['evento', 'name'],
     ]);
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
     try {
       const response = await axios.get(csvUrl);
       const refreshConferenceDtos: RefreshConferenceDto[] = Papa.parse(
@@ -122,7 +148,7 @@ export class ConferenceService {
       console.log(refreshConferenceDtos);
 
       for (const refreshConferenceDto of refreshConferenceDtos) {
-        const conference = await AppDataSource.manager.findOne(Conference, {
+        const conference = await queryRunner.manager.findOne(Conference, {
           where: {
             acronym: refreshConferenceDto.acronym,
           },
@@ -132,6 +158,7 @@ export class ConferenceService {
             `Creating conference ${refreshConferenceDto.acronym}-${refreshConferenceDto.name}`,
           );
           await this.create(
+            queryRunner,
             {
               ...refreshConferenceDto,
               isTop: false,
@@ -147,14 +174,20 @@ export class ConferenceService {
             `Updating conference ${conference.acronym}-${conference.name}-${conference.qualis} to ${refreshConferenceDto.acronym}-${refreshConferenceDto.name}-${refreshConferenceDto.qualis}`,
           );
           await this.update(
+            queryRunner,
             conference.id,
             { ...refreshConferenceDto, id: conference.id },
             email,
           );
         }
       }
+      await queryRunner.commitTransaction();
+      return { msg: 'Conferences refreshed successfully' };
     } catch (error) {
-      throw new Error(`Error refreshing conferences: ${error}`);
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 }

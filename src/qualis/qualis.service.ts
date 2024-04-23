@@ -77,6 +77,7 @@ export class JournalService {
       Object.assign(journal, updateJournalDto);
       await AppDataSource.manager.save(journal);
       createLog(
+        undefined,
         EntityType.JOURNAL_PUBLICATION,
         `Type: Update
       Email: ${email}
