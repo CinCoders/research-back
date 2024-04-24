@@ -114,7 +114,6 @@ export class ConferenceService {
     }
   }
 
-  // @Cron(new Date(Date.now() + 1000 * 3), {
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
     name: 'refresh_conferences',
     timeZone: 'America/Recife',
@@ -123,30 +122,11 @@ export class ConferenceService {
     if (!email) {
       email = 'cron_job@cin.ufpe.br';
     }
-    const csvUrl =
-      'https://docs.google.com/spreadsheets/d/' +
-      process.env.CONFERENCES_SHEET_ID +
-      '/gviz/tq?tqx=out:csv&sheet=Qualis';
-
-    const headers = new Map<string, string>([
-      ['sigla', 'acronym'],
-      ['Qualis_Final', 'qualis'],
-      ['evento', 'name'],
-    ]);
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      const response = await axios.get(csvUrl);
-      const refreshConferenceDtos: RefreshConferenceDto[] = Papa.parse(
-        response.data,
-        {
-          header: true,
-          transformHeader: (header) => headers.get(header) || header,
-        },
-      ).data as RefreshConferenceDto[];
-      console.log(refreshConferenceDtos);
-
+      const refreshConferenceDtos = await this.getSheetData();
       for (const refreshConferenceDto of refreshConferenceDtos) {
         const conference = await queryRunner.manager.findOne(Conference, {
           where: {
@@ -154,9 +134,6 @@ export class ConferenceService {
           },
         });
         if (!conference) {
-          console.log(
-            `Creating conference ${refreshConferenceDto.acronym}-${refreshConferenceDto.name}`,
-          );
           await this.create(
             queryRunner,
             {
@@ -170,9 +147,6 @@ export class ConferenceService {
           refreshConferenceDto.name !== conference.name ||
           refreshConferenceDto.qualis !== conference.qualis
         ) {
-          console.log(
-            `Updating conference ${conference.acronym}-${conference.name}-${conference.qualis} to ${refreshConferenceDto.acronym}-${refreshConferenceDto.name}-${refreshConferenceDto.qualis}`,
-          );
           await this.update(
             queryRunner,
             conference.id,
@@ -182,12 +156,31 @@ export class ConferenceService {
         }
       }
       await queryRunner.commitTransaction();
-      return { msg: 'Conferences refreshed successfully' };
-    } catch (error) {
+      return { message: 'Conferences refreshed successfully' };
+    } catch (error: any) {
       await queryRunner.rollbackTransaction();
+      console.log(error.message);
       throw error;
     } finally {
       await queryRunner.release();
     }
+  }
+
+  async getSheetData(): Promise<RefreshConferenceDto[]> {
+    const csvUrl =
+      'https://docs.google.com/spreadsheets/d/' +
+      process.env.CONFERENCES_SHEET_ID +
+      '/gviz/tq?tqx=out:csv&sheet=Qualis';
+
+    const headers = new Map<string, string>([
+      ['sigla', 'acronym'],
+      ['Qualis_Final', 'qualis'],
+      ['evento', 'name'],
+    ]);
+    const response = await axios.get(csvUrl);
+    return Papa.parse(response.data, {
+      header: true,
+      transformHeader: (header) => headers.get(header) || header,
+    }).data as RefreshConferenceDto[];
   }
 }

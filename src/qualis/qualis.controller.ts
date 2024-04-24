@@ -125,8 +125,7 @@ export class QualisController {
     try {
       const result = await this.conferencesService.refresh(user.email);
       return res.status(201).send(result);
-    } catch (error: any) {
-      console.log({ error: error.message });
+    } catch (error) {
       return res.status(500).send({ message: 'Error refreshing conferences' });
     }
   }
