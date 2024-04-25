@@ -50,7 +50,7 @@ export class QualisController {
     @Body() createJournalDto: CreateJournalDto,
     @AuthenticatedUser() user: any,
   ) {
-    return this.journalsService.create(createJournalDto, user.email);
+    return this.journalsService.create(undefined, createJournalDto, user.email);
   }
 
   @ApiResponse({
@@ -109,11 +109,16 @@ export class QualisController {
     @Body() updateJournals: UpdateJournalDto,
     @AuthenticatedUser() user: any,
   ) {
-    return this.journalsService.update(+id, updateJournals, user.email);
+    return this.journalsService.update(
+      undefined,
+      +id,
+      updateJournals,
+      user.email,
+    );
   }
 
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Refresh Conferences',
   })
   @Roles({ roles: [SystemRoles.ADMIN] })
@@ -127,6 +132,21 @@ export class QualisController {
       return res.status(201).send(result);
     } catch (error) {
       return res.status(500).send({ message: 'Error refreshing conferences' });
+    }
+  }
+
+  @ApiResponse({
+    status: 201,
+    description: 'Refresh Journals',
+  })
+  @Roles({ roles: [SystemRoles.ADMIN] })
+  @Post('journals/refresh')
+  async refreshJournals(@Res() res: Response, @AuthenticatedUser() user: any) {
+    try {
+      const result = await this.journalsService.refresh(user.email);
+      return res.status(201).send(result);
+    } catch (error) {
+      return res.status(500).send({ message: 'Error refreshing journals' });
     }
   }
 }
