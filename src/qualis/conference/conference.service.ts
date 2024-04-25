@@ -29,12 +29,9 @@ export class ConferenceService {
     createConferenceDto: CreateConferenceDto,
     email: string,
   ) {
-    let manager: EntityManager;
-    if (!queryRunner) {
-      manager = AppDataSource.manager;
-    } else {
-      manager = queryRunner.manager;
-    }
+    const manager: EntityManager = !queryRunner
+      ? AppDataSource.manager
+      : queryRunner.manager;
 
     const conference = new Conference();
     conference.acronym = createConferenceDto.acronym;
@@ -88,12 +85,9 @@ export class ConferenceService {
     updateConferenceDto: UpdateConferenceDto,
     email: string,
   ) {
-    let manager: EntityManager;
-    if (!queryRunner) {
-      manager = AppDataSource.manager;
-    } else {
-      manager = queryRunner.manager;
-    }
+    const manager: EntityManager = !queryRunner
+      ? AppDataSource.manager
+      : queryRunner.manager;
     const conference = await manager.findOne(Conference, {
       where: { id: id },
     });
@@ -113,11 +107,15 @@ export class ConferenceService {
       );
     }
   }
-
-  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
-    name: 'refresh_conferences',
-    timeZone: 'America/Recife',
-  })
+  // 1st day of the month if there is no env variable:
+  @Cron(
+    process.env.CRON_PATTERN ||
+      CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT,
+    {
+      name: 'refresh_conferences',
+      timeZone: 'America/Recife',
+    },
+  )
   async refresh(email: string) {
     if (!email) {
       email = 'cron_job@cin.ufpe.br';
