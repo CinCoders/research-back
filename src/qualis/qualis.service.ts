@@ -128,11 +128,11 @@ export class JournalService {
       console.log(refreshJournalDtos);
 
       for (const refreshJournalDto of refreshJournalDtos) {
-        const journal = await queryRunner.manager.findOne(Journal, {
+        const journals = await queryRunner.manager.find(Journal, {
           where: { issn: refreshJournalDto.issn },
         });
 
-        if (!journal) {
+        if (journals.length === 0) {
           const createJournalDto: CreateJournalDto = {
             ...refreshJournalDto,
             isTop: false,
@@ -146,17 +146,35 @@ export class JournalService {
           }
           await this.create(queryRunner, createJournalDto, email);
         } else if (
-          refreshJournalDto.name !== journal.name ||
-          refreshJournalDto.qualis !== journal.qualis
+          journals.length === 1 &&
+          (refreshJournalDto.name !== journals[0].name ||
+            refreshJournalDto.qualis !== journals[0].qualis)
         ) {
           const updateJournalDto: UpdateJournalDto = {
             ...refreshJournalDto,
-            id: journal.id,
+            id: journals[0].id,
           };
-          await this.update(queryRunner, journal.id, updateJournalDto, email);
+          await this.update(
+            queryRunner,
+            journals[0].id,
+            updateJournalDto,
+            email,
+          );
+        } else if (
+          journals.length > 1 &&
+          refreshJournalDto.qualis !== journals[0].qualis
+        ) {
+          for (const journal of journals) {
+            const updateJournalDto: UpdateJournalDto = {
+              ...journal,
+              qualis: refreshJournalDto.qualis,
+            };
+            await this.update(queryRunner, journal.id, updateJournalDto, email);
+          }
         }
       }
       await queryRunner.commitTransaction();
+      return { message: 'Journals refreshed successfully' };
     } catch (error: any) {
       await queryRunner.rollbackTransaction();
       console.log(error.message);
@@ -176,10 +194,12 @@ export class JournalService {
     const data = Papa.parse(response.data, {
       header: true,
     }).data;
-    return data.map((journal: any) => ({
-      issn: journal['issn'].replace('-', ''),
-      name: journal['periodico'],
-      qualis: journal['Qualis_Final'],
-    }));
+    return data
+      .filter((journal: any) => journal.issn !== 'nulo')
+      .map((journal: any) => ({
+        issn: journal['issn'].replace('-', ''),
+        name: journal['periodico'],
+        qualis: journal['Qualis_Final'],
+      }));
   }
 }
