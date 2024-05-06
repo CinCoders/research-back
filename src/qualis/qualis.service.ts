@@ -125,8 +125,6 @@ export class JournalService {
     await queryRunner.startTransaction();
     try {
       const refreshJournalDtos = await this.getSheetData();
-      console.log(refreshJournalDtos);
-
       for (const refreshJournalDto of refreshJournalDtos) {
         const journals = await queryRunner.manager.find(Journal, {
           where: { issn: refreshJournalDto.issn },
