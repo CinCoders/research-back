@@ -1,4 +1,4 @@
-import { Controller, Get, Body, Param, Patch, Post, Req } from '@nestjs/common';
+import { Controller, Get, Body, Param, Patch, Post, Res } from '@nestjs/common';
 import { JournalService } from './qualis.service';
 import { UpdateJournalDto } from './dto/update-journal.dto';
 import { UpdateConferenceDto } from './dto/update-conference.dto';
@@ -10,6 +10,7 @@ import { CreateConferenceDto } from './dto/create-conference.dto';
 import { CreateJournalDto } from './dto/create-journal.dto';
 import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
 import { SystemRoles } from 'src/types/enums';
+import { Response } from 'express';
 
 @ApiTags('Qualis')
 @ApiOAuth2([])
@@ -31,7 +32,11 @@ export class QualisController {
     @AuthenticatedUser() user: any,
     @Body() createConferenceDto: CreateConferenceDto,
   ) {
-    return this.conferencesService.create(createConferenceDto, user.email);
+    return this.conferencesService.create(
+      undefined,
+      createConferenceDto,
+      user.email,
+    );
   }
 
   @ApiResponse({
@@ -45,7 +50,7 @@ export class QualisController {
     @Body() createJournalDto: CreateJournalDto,
     @AuthenticatedUser() user: any,
   ) {
-    return this.journalsService.create(createJournalDto, user.email);
+    return this.journalsService.create(undefined, createJournalDto, user.email);
   }
 
   @ApiResponse({
@@ -84,7 +89,12 @@ export class QualisController {
     @Param('id') id: string,
     @Body() updateConferenceDto: UpdateConferenceDto,
   ) {
-    return this.conferencesService.update(+id, updateConferenceDto, user.email);
+    return this.conferencesService.update(
+      undefined,
+      +id,
+      updateConferenceDto,
+      user.email,
+    );
   }
 
   @ApiResponse({
@@ -99,6 +109,44 @@ export class QualisController {
     @Body() updateJournals: UpdateJournalDto,
     @AuthenticatedUser() user: any,
   ) {
-    return this.journalsService.update(+id, updateJournals, user.email);
+    return this.journalsService.update(
+      undefined,
+      +id,
+      updateJournals,
+      user.email,
+    );
+  }
+
+  @ApiResponse({
+    status: 201,
+    description: 'Refresh Conferences',
+  })
+  @Roles({ roles: [SystemRoles.ADMIN] })
+  @Post('conferences/refresh')
+  async refreshConferences(
+    @Res() res: Response,
+    @AuthenticatedUser() user: any,
+  ) {
+    try {
+      const result = await this.conferencesService.refresh(user.email);
+      return res.status(201).send(result);
+    } catch (error) {
+      return res.status(500).send({ message: 'Error refreshing conferences' });
+    }
+  }
+
+  @ApiResponse({
+    status: 201,
+    description: 'Refresh Journals',
+  })
+  @Roles({ roles: [SystemRoles.ADMIN] })
+  @Post('journals/refresh')
+  async refreshJournals(@Res() res: Response, @AuthenticatedUser() user: any) {
+    try {
+      const result = await this.journalsService.refresh(user.email);
+      return res.status(201).send(result);
+    } catch (error) {
+      return res.status(500).send({ message: 'Error refreshing journals' });
+    }
   }
 }
