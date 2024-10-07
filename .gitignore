@@ -37,3 +37,6 @@ lerna-debug.log*
 # Enviroment
 .env
 certs/
+
+# Misc
+downloadedFiles/

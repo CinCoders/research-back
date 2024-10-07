@@ -20,6 +20,7 @@ import { ProfessorService } from './professor.service';
 import { FilterValidationPipe } from './dto/parse-filter.pipe';
 import { Response } from 'express';
 import { ProfessorTableDto } from './dto/professor-table.dto';
+import { ProfessorPatentDto } from 'src/patents/dto/professor-patent.dto';
 
 @Roles({ roles: [SystemRoles.USERS] })
 @ApiTags('Professor Module')
@@ -93,6 +94,17 @@ export class ProfessorController {
     @Param('id') id: string,
   ): Promise<ProfessorProjectFinancierDto[]> {
     return this.professorService.getProjects(id);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Returns professor patents.',
+    isArray: true,
+    type: ProfessorPatentDto,
+  })
+  @Get(':id/patents')
+  getPatents(@Param('id') id: string): Promise<ProfessorPatentDto[]> {
+    return this.professorService.getPatents(id);
   }
 
   @ApiResponse({
