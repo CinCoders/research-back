@@ -1,6 +1,6 @@
 {
   "name": "research-back",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Research Dashboard API - System to display information extracted from professors' Lattes curriculum.",
   "license": "MIT",
   "author": "CInCoders <cincoders@cin.ufpe.br> (https://cincoders.cin.ufpe.br)",
@@ -31,8 +31,8 @@
     "schema:drop": "npm run typeorm schema:drop -- -d ./src/app.datasource.ts"
   },
   "dependencies": {
-    "@nestjs/common": "^9.0.0",
-    "@nestjs/config": "^2.2.0",
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/config": "^3.2.3",
     "@nestjs/core": "^10.3.7",
     "@nestjs/mapped-types": "*",
     "@nestjs/platform-express": "^10.3.7",
