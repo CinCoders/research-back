@@ -18,6 +18,7 @@ import {
 import { APP_GUARD } from '@nestjs/core';
 import { AppDataSource } from './app.datasource';
 import { ScholarshipModule } from './scholarship/scholarship.module';
+import { PatentsModule } from './patents/patents.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { ScholarshipModule } from './scholarship/scholarship.module';
       },
     }),
     ScholarshipModule,
+    PatentsModule,
   ],
   controllers: [],
   providers: [
