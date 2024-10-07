@@ -23,11 +23,15 @@ export class PostGraduationController {
     @Query('groupByProfessor', ParseBoolPipe) groupByProfessor: boolean,
     @Query('groupByYear', ParseBoolPipe) groupByYear: boolean,
     @Query('filter') filter: 'current' | 'concluded',
+    @Query('startYear') startYear: number,
+    @Query('endYear') endYear: number,
   ): Promise<StudentsDto[]> {
     return await this.postGraduationService.get(
       groupByProfessor,
       groupByYear,
       filter,
+      startYear,
+      endYear,
     );
   }
 }
