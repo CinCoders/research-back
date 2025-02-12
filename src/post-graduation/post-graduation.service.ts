@@ -7,6 +7,8 @@ export class PostGraduationService {
     groupByProfessor: boolean,
     groupByYear: boolean,
     filter: 'current' | 'concluded',
+    startYear: number,
+    endYear: number,
   ) {
     const queryRunner = AppDataSource.createQueryRunner();
 
@@ -29,14 +31,15 @@ export class PostGraduationService {
     LEFT JOIN advisee a ON a.professor_id=p.id
     ${
       filter === 'concluded'
-        ? 'WHERE a.year_start IS NULL AND a.year_end IS NOT NULL'
+        ? ` WHERE a.year_start IS NULL AND a.year_end IS NOT NULL AND a.year_end >= ${startYear} AND a.year_end <= ${endYear}`
         : ''
     }
     ${
       filter === 'current'
-        ? 'WHERE a.year_end IS NULL AND a.year_start IS NOT NULL'
+        ? ` WHERE a.year_end IS NULL AND a.year_start IS NOT NULL AND a.year_start >= ${startYear} AND a.year_start <= ${endYear}`
         : ''
     }
+    
     ${
       groupByProfessor && groupByYear
         ? 'GROUP BY p.id, year ORDER BY p.name ASC, year DESC;'

@@ -1,4 +1,10 @@
-import { Controller, Get, ParseBoolPipe, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  ParseBoolPipe,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'nest-keycloak-connect';
 import { SystemRoles } from 'src/types/enums';
@@ -25,7 +31,14 @@ export class ProjectsController {
   async get(
     @Query('groupByProfessor', ParseBoolPipe) groupByProfessor: boolean,
     @Query('groupByYear', ParseBoolPipe) groupByYear: boolean,
+    @Query('startYear', ParseIntPipe) startYear: number,
+    @Query('endYear', ParseIntPipe) endYear: number,
   ): Promise<ProjectsDto[]> {
-    return await this.projectsService.get(groupByProfessor, groupByYear);
+    return await this.projectsService.get(
+      groupByProfessor,
+      groupByYear,
+      startYear,
+      endYear,
+    );
   }
 }
