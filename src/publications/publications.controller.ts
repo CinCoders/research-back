@@ -1,4 +1,10 @@
-import { Controller, Get, ParseBoolPipe, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  ParseBoolPipe,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'nest-keycloak-connect';
 import { SystemRoles } from 'src/types/enums';
@@ -26,12 +32,16 @@ export class PublicationsController {
     @Query('groupByYear', ParseBoolPipe) groupByYear: boolean,
     @Query('articles', ParseBoolPipe) articles: boolean,
     @Query('conferences', ParseBoolPipe) conferences: boolean,
+    @Query('startYear', ParseIntPipe) startYear: number,
+    @Query('endYear', ParseIntPipe) endYear: number,
   ): Promise<PublicationsDto[]> {
     return await this.publicationsService.get(
       articles,
       conferences,
       groupByProfessor,
       groupByYear,
+      startYear,
+      endYear,
     );
   }
 }

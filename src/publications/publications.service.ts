@@ -9,6 +9,8 @@ export class PublicationsService {
     conferencePublications: boolean,
     groupByProfessor: boolean,
     groupByYear: boolean,
+    startYear: number,
+    endYear: number,
   ) {
     const selectPublications = `
     SELECT
@@ -60,16 +62,21 @@ export class PublicationsService {
       FROM "professor" "p"
     `;
 
+    const whereClause = ` WHERE pp.year >= ${startYear} AND pp.year <= ${endYear}`;
+
     const groupBy =
       (groupByProfessor && groupByYear ? ` GROUP BY p.name, p.id, year` : '') +
       (groupByProfessor && !groupByYear ? ` GROUP BY p.name, p.id` : '') +
       (!groupByProfessor && groupByYear ? ` GROUP BY year` : '');
 
     const joinJournalPublications =
-      `JOIN "journal_publication" "pp" on "pp"."professor_id"=p.id` + groupBy;
+      `JOIN "journal_publication" "pp" on "pp"."professor_id"=p.id` +
+      whereClause +
+      groupBy;
 
     const joinConferencePublications =
       `JOIN "conference_publication" "pp" on "pp"."professor_id"=p.id` +
+      whereClause +
       groupBy;
 
     return (
@@ -102,6 +109,8 @@ export class PublicationsService {
     conferencePublications: boolean,
     groupByProfessor: boolean,
     groupByYear: boolean,
+    startYear: number,
+    endYear: number,
   ) {
     if (!journalPublications && !conferencePublications) return [];
 
@@ -115,6 +124,8 @@ export class PublicationsService {
         conferencePublications,
         groupByProfessor,
         groupByYear,
+        startYear,
+        endYear,
       ),
     );
 

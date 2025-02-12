@@ -7,6 +7,8 @@ export class ProjectsService {
   async get(
     groupByProfessor: boolean,
     groupByYear: boolean,
+    startYear: number,
+    endYear: number,
   ): Promise<ProjectsDto[]> {
     const queryRunner = AppDataSource.createQueryRunner();
 
@@ -30,6 +32,8 @@ export class ProjectsService {
     LEFT JOIN project_financier pf ON pf.project_id=pr.id
     LEFT JOIN financier f ON pf.financier_id=f.id
     WHERE pr.year IS NOT NULL
+    AND pr.year >= ${startYear}
+    AND pr.year <= ${endYear}
     ${
       groupByProfessor && groupByYear
         ? 'GROUP BY p.id, pr.year ORDER BY p.name ASC, pr.year DESC;'
