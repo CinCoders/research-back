@@ -44,7 +44,7 @@ export class PatentsService {
         : ''
     }
   `);
-   
+
     await queryRunner.release();
 
     return result;

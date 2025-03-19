@@ -8,7 +8,10 @@ import { QueryRunner } from 'typeorm';
 
 @Injectable()
 export class TranslationService {
-  async findOne(translationDto: TranslationDto, queryRunner: QueryRunner | undefined) {
+  async findOne(
+    translationDto: TranslationDto,
+    queryRunner: QueryRunner | undefined,
+  ) {
     try {
       return await AppDataSource.createQueryBuilder(queryRunner)
         .select('t')
@@ -23,7 +26,10 @@ export class TranslationService {
     }
   }
 
-  async createTranslation(translationDto: TranslationDto, queryRunner: QueryRunner) {
+  async createTranslation(
+    translationDto: TranslationDto,
+    queryRunner: QueryRunner,
+  ) {
     try {
       const translation = new Translation();
       translation.title = translationDto.title;
@@ -34,7 +40,8 @@ export class TranslationService {
       translation.originalAuthor = translationDto.originalAuthor;
       translation.professor = translationDto.professor;
       translation.publicationCountry = translationDto.publicationCountry;
-      translation.originalPublicationCity = translationDto.originalPublicationCity;
+      translation.originalPublicationCity =
+        translationDto.originalPublicationCity;
       translation.bigArea = translationDto.bigArea;
       translation.area = translationDto.area;
       translation.subArea = translationDto.subArea;
@@ -42,7 +49,11 @@ export class TranslationService {
       translation.issn = translationDto.issn;
       translation.year = translationDto.year;
 
-      await AppDataSource.createQueryBuilder(queryRunner).insert().into(Translation).values(translation).execute();
+      await AppDataSource.createQueryBuilder(queryRunner)
+        .insert()
+        .into(Translation)
+        .values(translation)
+        .execute();
 
       return translation;
     } catch (error) {

@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Journal } from '../../qualis/entities/journal.entity';
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Professor } from './professor.entity';
 
 @ApiTags('JournalPublication')
@@ -14,7 +20,7 @@ export class JournalPublication {
   id!: number;
 
   @ApiProperty({ name: 'professor', type: Number })
-  @ManyToOne(() => Professor, professor => professor.journalPublication)
+  @ManyToOne(() => Professor, (professor) => professor.journalPublication)
   @JoinColumn({ name: 'professor_id' })
   professor!: Professor;
 

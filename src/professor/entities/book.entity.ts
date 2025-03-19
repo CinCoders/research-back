@@ -1,5 +1,11 @@
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Professor } from './professor.entity';
 
 @ApiTags('Book')
@@ -13,7 +19,7 @@ export class Book {
   id!: number;
 
   @ApiProperty({ name: 'professor', type: Number })
-  @ManyToOne(() => Professor, professor => professor.book)
+  @ManyToOne(() => Professor, (professor) => professor.book)
   @JoinColumn({ name: 'professor_id' })
   professor!: Professor;
 
