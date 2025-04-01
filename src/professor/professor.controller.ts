@@ -1,26 +1,27 @@
 import {
+  BadRequestException,
   Controller,
   Delete,
   Get,
   HttpStatus,
   Param,
-  ParseBoolPipe,
   Query,
   Res,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
+import { ProfessorPatentDto } from 'src/patents/dto/professor-patent.dto';
 import { SystemRoles } from 'src/types/enums';
 import { AdviseeFormatDto } from './dto/advisee-format.dto';
+import { IdentifierQueryParamsDTO } from './dto/identifier-query-params.dto';
+import { FilterValidationPipe } from './dto/parse-filter.pipe';
 import { ProfessorProjectFinancierDto } from './dto/professor-project-financier.dto';
 import { ProfessorPublicationsDto } from './dto/professor-publications.dto';
-import { ProfessorDto } from './dto/professor.dto';
+import { ProfessorTableDto } from './dto/professor-table.dto';
 import { Professor } from './entities/professor.entity';
 import { ProfessorService } from './professor.service';
-import { FilterValidationPipe } from './dto/parse-filter.pipe';
-import { Response } from 'express';
-import { ProfessorTableDto } from './dto/professor-table.dto';
-import { ProfessorPatentDto } from 'src/patents/dto/professor-patent.dto';
 
 @Roles({ roles: [SystemRoles.USERS] })
 @ApiTags('Professor Module')
@@ -44,9 +45,9 @@ export class ProfessorController {
     description: 'Returns professor.',
     type: Professor,
   })
-  @Get(':id')
-  async getProfessor(@Param('id') id: string) {
-    return await this.professorService.findOne(+id);
+  @Get('find')
+  async getProfessor(@Query() { id, lattes }: IdentifierQueryParamsDTO) {
+    return await this.professorService.findOne(Number(id), lattes);
   }
 
   @ApiResponse({
@@ -55,17 +56,30 @@ export class ProfessorController {
     isArray: true,
     type: ProfessorPublicationsDto,
   })
-  @Get(':id/publications')
+  @Get('publications')
   getPublications(
-    @Param('id') id: string,
-    @Query('journalPublications', ParseBoolPipe) journalPublications: boolean,
-    @Query('conferencePublications', ParseBoolPipe)
-    conferencePublications: boolean,
+    @Query('journalPublications', new ValidationPipe({ transform: true }))
+    journalPublications?: boolean,
+    @Query('conferencePublications', new ValidationPipe({ transform: true }))
+    conferencePublications?: boolean,
+    @Query('id', new ValidationPipe({ transform: true })) id?: string,
+    @Query('lattes', new ValidationPipe({ transform: true })) lattes?: string,
   ): Promise<ProfessorPublicationsDto[]> | [] {
+    if (!id && !lattes) {
+      throw new BadRequestException(
+        `At least one of the parameters [id, lattes] must be provided.`,
+      );
+    } else if (id && lattes) {
+      throw new BadRequestException(
+        `Only one of the parameters [id, lattes] must be provided.`,
+      );
+    }
+
     return this.professorService.getPublications(
       id,
-      journalPublications,
-      conferencePublications,
+      lattes,
+      !!journalPublications,
+      !!conferencePublications,
     );
   }
 
@@ -75,12 +89,23 @@ export class ProfessorController {
     isArray: true,
     type: AdviseeFormatDto,
   })
-  @Get(':id/students')
+  @Get('students')
   getStudents(
-    @Param('id') id: string,
     @Query('filter', FilterValidationPipe) filter: string,
+    @Query('id', new ValidationPipe({ transform: true })) id?: string,
+    @Query('lattes', new ValidationPipe({ transform: true })) lattes?: string,
   ): Promise<AdviseeFormatDto[]> {
-    return this.professorService.getStudents(id, filter);
+    if (!id && !lattes) {
+      throw new BadRequestException(
+        `At least one of the parameters [id, lattes] must be provided.`,
+      );
+    } else if (id && lattes) {
+      throw new BadRequestException(
+        `Only one of the parameters [id, lattes] must be provided.`,
+      );
+    }
+
+    return this.professorService.getStudents(filter, id, lattes);
   }
 
   @ApiResponse({
@@ -89,11 +114,11 @@ export class ProfessorController {
     isArray: true,
     type: ProfessorProjectFinancierDto,
   })
-  @Get(':id/projects')
+  @Get('projects')
   getProjects(
-    @Param('id') id: string,
+    @Query() { id, lattes }: IdentifierQueryParamsDTO,
   ): Promise<ProfessorProjectFinancierDto[]> {
-    return this.professorService.getProjects(id);
+    return this.professorService.getProjects(id, lattes);
   }
 
   @ApiResponse({
@@ -102,9 +127,11 @@ export class ProfessorController {
     isArray: true,
     type: ProfessorPatentDto,
   })
-  @Get(':id/patents')
-  getPatents(@Param('id') id: string): Promise<ProfessorPatentDto[]> {
-    return this.professorService.getPatents(id);
+  @Get('patents')
+  getPatents(
+    @Query() { id, lattes }: IdentifierQueryParamsDTO,
+  ): Promise<ProfessorPatentDto[]> {
+    return this.professorService.getPatents(id, lattes);
   }
 
   @ApiResponse({
