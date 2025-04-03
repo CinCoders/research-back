@@ -20,11 +20,7 @@ export class AdviseeService {
       .getOne();
   }
 
-  async createAdvisee(
-    adviseeDto: AdviseeDto,
-    degree: string,
-    queryRunner: QueryRunner,
-  ) {
+  async createAdvisee(adviseeDto: AdviseeDto, degree: string, queryRunner: QueryRunner) {
     const advisee = new Advisee();
     let financier;
     advisee.professor = adviseeDto.professor;
@@ -48,11 +44,7 @@ export class AdviseeService {
     advisee.schoolarship = adviseeDto.scholarship;
     advisee.title = adviseeDto.title;
 
-    await AppDataSource.createQueryBuilder(queryRunner)
-      .insert()
-      .into(Advisee)
-      .values(advisee)
-      .execute();
+    await AppDataSource.createQueryBuilder(queryRunner).insert().into(Advisee).values(advisee).execute();
 
     return advisee;
   }

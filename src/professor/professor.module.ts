@@ -22,14 +22,7 @@ import { TranslationService } from './services/translation/translation/translati
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Professor,
-      JournalPublication,
-      ConferencePublication,
-      Advisee,
-      Financier,
-      Project,
-    ]),
+    TypeOrmModule.forFeature([Professor, JournalPublication, ConferencePublication, Advisee, Financier, Project]),
     PublicationsModule,
   ],
   controllers: [ProfessorController],

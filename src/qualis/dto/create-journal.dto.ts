@@ -1,11 +1,5 @@
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 @ApiTags('CreateJournalDto')
 export class CreateJournalDto {

@@ -215,9 +215,7 @@ export class SeedFinanciers1645191297914 implements MigrationInterface {
     INSERT INTO public.financier (id, acronym, name, code) VALUES (211, null, 'Empresa Municipal de Informática', '001800000992');
     `);
 
-    await queryRunner.query(
-      `SELECT setval('financier_id_seq', (SELECT MAX(id) FROM financier));`,
-    );
+    await queryRunner.query(`SELECT setval('financier_id_seq', (SELECT MAX(id) FROM financier));`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

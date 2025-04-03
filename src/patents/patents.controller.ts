@@ -17,8 +17,7 @@ export class PatentsController {
   @Get()
   @ApiResponse({
     status: 200,
-    description:
-      'Returns article or conferences qualis metrics for each professor.',
+    description: 'Returns article or conferences qualis metrics for each professor.',
     isArray: true,
     type: PatentsDto,
   })

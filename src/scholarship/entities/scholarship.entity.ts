@@ -1,12 +1,5 @@
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { Professor } from '../../professor/entities/professor.entity';
 
 @ApiTags('Scholarship')

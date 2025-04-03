@@ -10,14 +10,9 @@ import { AppDataSource } from 'src/app.datasource';
 
 @Injectable()
 export class ConferencePublicationService {
-  constructor(
-    private readonly stringSimilarityService: StringSimilarityService,
-  ) {}
+  constructor(private readonly stringSimilarityService: StringSimilarityService) {}
 
-  async createConference(
-    conferenceDto: ConferenceDto,
-    queryRunner: QueryRunner,
-  ) {
+  async createConference(conferenceDto: ConferenceDto, queryRunner: QueryRunner) {
     const conferencePublication = new ConferencePublication();
     conferencePublication.professor = conferenceDto.professor;
     conferencePublication.title = conferenceDto.title;
@@ -91,17 +86,13 @@ export class ConferencePublicationService {
             );
             if (topConference) {
               conferencePublication.conference = topConference;
-              if (topConference.qualis)
-                conferencePublication.qualis = topConference.qualis;
+              if (topConference.qualis) conferencePublication.qualis = topConference.qualis;
               if (topConference.isTop) conferencePublication.isTop = true;
               await AppDataSource.createQueryBuilder(queryRunner)
                 .insert()
                 .into(ConferencePublication)
                 .values(conferencePublication)
-                .orUpdate(
-                  ['title', 'proceedings', 'qualis', 'conference_id', 'is_top'],
-                  ['id'],
-                )
+                .orUpdate(['title', 'proceedings', 'qualis', 'conference_id', 'is_top'], ['id'])
                 .execute();
             }
           }
@@ -109,11 +100,10 @@ export class ConferencePublicationService {
 
         // search conferencePublication proceedings string for conferencePublication name
         if (!conferencePublication.conference) {
-          const bestMatchProceedings =
-            this.stringSimilarityService.findBestMatch(
-              conferencePublication.proceedings,
-              conferenceNameList,
-            ).bestMatch;
+          const bestMatchProceedings = this.stringSimilarityService.findBestMatch(
+            conferencePublication.proceedings,
+            conferenceNameList,
+          ).bestMatch;
 
           if (bestMatchProceedings.rating >= 1) {
             const conference: Conference | undefined = conferenceList.find(
@@ -121,8 +111,7 @@ export class ConferencePublicationService {
             );
             if (conference) {
               conferencePublication.conference = conference;
-              if (conference.qualis)
-                conferencePublication.qualis = conference.qualis;
+              if (conference.qualis) conferencePublication.qualis = conference.qualis;
               if (conference.isTop) conferencePublication.isTop = true;
               await AppDataSource.createQueryBuilder(queryRunner)
                 .insert()
@@ -136,8 +125,7 @@ export class ConferencePublicationService {
 
         // search conferencePublication event string for conferencePublication acronym
         if (!conferencePublication.conference) {
-          const conferenceEventStrings =
-            conferencePublication.event.split(pattern);
+          const conferenceEventStrings = conferencePublication.event.split(pattern);
           let highestMatch: { target: string; rating: number } = {
             target: '',
             rating: -1,
@@ -149,10 +137,7 @@ export class ConferencePublicationService {
           };
           let index = -1;
           for (let k = 0; k < conferenceEventStrings.length; k++) {
-            result = this.stringSimilarityService.findBestMatch(
-              conferenceEventStrings[k],
-              conferenceAcronymList,
-            );
+            result = this.stringSimilarityService.findBestMatch(conferenceEventStrings[k], conferenceAcronymList);
 
             if (result.bestMatch.rating > highestMatch.rating) {
               highestMatch = result.bestMatch;
@@ -164,8 +149,7 @@ export class ConferencePublicationService {
             const topConference = conferenceList[index];
             if (topConference) {
               conferencePublication.conference = topConference;
-              if (topConference.qualis)
-                conferencePublication.qualis = topConference.qualis;
+              if (topConference.qualis) conferencePublication.qualis = topConference.qualis;
               if (topConference.isTop) conferencePublication.isTop = true;
               await AppDataSource.createQueryBuilder(queryRunner)
                 .insert()
@@ -179,8 +163,7 @@ export class ConferencePublicationService {
 
         // search conferencePublication proceedings string for conferencePublication acronym
         if (!conferencePublication.conference) {
-          const conferenceProceedingsStrings =
-            conferencePublication.proceedings.split(pattern);
+          const conferenceProceedingsStrings = conferencePublication.proceedings.split(pattern);
           let highestMatch: { target: string; rating: number } = {
             target: '',
             rating: -1,
@@ -192,10 +175,7 @@ export class ConferencePublicationService {
           };
           let index = -1;
           for (let k = 0; k < conferenceProceedingsStrings.length; k++) {
-            result = this.stringSimilarityService.findBestMatch(
-              conferenceProceedingsStrings[k],
-              conferenceAcronymList,
-            );
+            result = this.stringSimilarityService.findBestMatch(conferenceProceedingsStrings[k], conferenceAcronymList);
 
             if (result.bestMatch.rating > highestMatch.rating) {
               highestMatch = result.bestMatch;
@@ -209,24 +189,14 @@ export class ConferencePublicationService {
             );
             if (topConference) {
               conferencePublication.conference = topConference;
-              if (topConference.qualis)
-                conferencePublication.qualis = topConference.qualis;
+              if (topConference.qualis) conferencePublication.qualis = topConference.qualis;
               if (topConference.isTop) conferencePublication.isTop = true;
               await AppDataSource.createQueryBuilder(queryRunner)
                 .insert()
                 .into(ConferencePublication)
                 .values(conferencePublication)
                 .orUpdate(
-                  [
-                    'title',
-                    'event',
-                    'proceedings',
-                    'year',
-                    'is_top',
-                    'qualis',
-                    'professor_id',
-                    'conference_id',
-                  ],
+                  ['title', 'event', 'proceedings', 'year', 'is_top', 'qualis', 'professor_id', 'conference_id'],
                   ['id'],
                 )
                 .execute();
@@ -235,11 +205,7 @@ export class ConferencePublicationService {
         }
       }
     } catch (err: any) {
-      await logErrorToDatabase(
-        err,
-        EntityType.CONFERENCE,
-        conferencePublication.id.toString(),
-      );
+      await logErrorToDatabase(err, EntityType.CONFERENCE, conferencePublication.id.toString());
       throw err;
     }
   }

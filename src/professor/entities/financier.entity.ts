@@ -25,10 +25,7 @@ export class Financier {
   @Column({ name: 'code', length: 100, nullable: true })
   code!: string;
 
-  @OneToMany(
-    () => ProjectFinancier,
-    (projectFinancier) => projectFinancier.financier,
-  )
+  @OneToMany(() => ProjectFinancier, (projectFinancier) => projectFinancier.financier)
   projectFinancier!: ProjectFinancier[];
 
   @OneToMany(() => Advisee, (advisee) => advisee.financier)

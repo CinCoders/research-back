@@ -33,9 +33,7 @@ export class StringSimilarityService {
 
   findBestMatch(mainString: string, targetStrings: string[]) {
     if (!this.areArgsValid(mainString, targetStrings))
-      throw new Error(
-        'Bad arguments: First argument should be a string, second should be an array of strings',
-      );
+      throw new Error('Bad arguments: First argument should be a string, second should be an array of strings');
 
     const ratings: { target: string; rating: number }[] = [];
     let bestMatchIndex = 0;
@@ -72,10 +70,7 @@ export class StringSimilarityService {
         //   }
       }
 
-      const currentRating = this.compareTwoStrings(
-        mainString,
-        currentTargetString,
-      );
+      const currentRating = this.compareTwoStrings(mainString, currentTargetString);
       // if (
       //   currentTargetString === 'Intelligent Systems for Molecular Biology' ||
       //   currentTargetString === 'European Conference on Computational Biology'

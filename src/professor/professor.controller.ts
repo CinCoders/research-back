@@ -66,21 +66,12 @@ export class ProfessorController {
     @Query('lattes', new ValidationPipe({ transform: true })) lattes?: string,
   ): Promise<ProfessorPublicationsDto[]> | [] {
     if (!id && !lattes) {
-      throw new BadRequestException(
-        `At least one of the parameters [id, lattes] must be provided.`,
-      );
+      throw new BadRequestException(`At least one of the parameters [id, lattes] must be provided.`);
     } else if (id && lattes) {
-      throw new BadRequestException(
-        `Only one of the parameters [id, lattes] must be provided.`,
-      );
+      throw new BadRequestException(`Only one of the parameters [id, lattes] must be provided.`);
     }
 
-    return this.professorService.getPublications(
-      id,
-      lattes,
-      !!journalPublications,
-      !!conferencePublications,
-    );
+    return this.professorService.getPublications(id, lattes, !!journalPublications, !!conferencePublications);
   }
 
   @ApiResponse({
@@ -96,13 +87,9 @@ export class ProfessorController {
     @Query('lattes', new ValidationPipe({ transform: true })) lattes?: string,
   ): Promise<AdviseeFormatDto[]> {
     if (!id && !lattes) {
-      throw new BadRequestException(
-        `At least one of the parameters [id, lattes] must be provided.`,
-      );
+      throw new BadRequestException(`At least one of the parameters [id, lattes] must be provided.`);
     } else if (id && lattes) {
-      throw new BadRequestException(
-        `Only one of the parameters [id, lattes] must be provided.`,
-      );
+      throw new BadRequestException(`Only one of the parameters [id, lattes] must be provided.`);
     }
 
     return this.professorService.getStudents(filter, id, lattes);
@@ -115,9 +102,7 @@ export class ProfessorController {
     type: ProfessorProjectFinancierDto,
   })
   @Get('projects')
-  getProjects(
-    @Query() { id, lattes }: IdentifierQueryParamsDTO,
-  ): Promise<ProfessorProjectFinancierDto[]> {
+  getProjects(@Query() { id, lattes }: IdentifierQueryParamsDTO): Promise<ProfessorProjectFinancierDto[]> {
     return this.professorService.getProjects(id, lattes);
   }
 
@@ -128,9 +113,7 @@ export class ProfessorController {
     type: ProfessorPatentDto,
   })
   @Get('patents')
-  getPatents(
-    @Query() { id, lattes }: IdentifierQueryParamsDTO,
-  ): Promise<ProfessorPatentDto[]> {
+  getPatents(@Query() { id, lattes }: IdentifierQueryParamsDTO): Promise<ProfessorPatentDto[]> {
     return this.professorService.getPatents(id, lattes);
   }
 
@@ -141,27 +124,15 @@ export class ProfessorController {
   })
   @ApiResponse({ status: 404, description: 'Professor was not found' })
   @Delete(':id')
-  async deleteProfessor(
-    @AuthenticatedUser() user: any,
-    @Param('id') id: string,
-    @Res() res: Response,
-  ) {
+  async deleteProfessor(@AuthenticatedUser() user: any, @Param('id') id: string, @Res() res: Response) {
     try {
-      const deletedProfessor = await this.professorService.remove(
-        +id,
-        user.email,
-      );
+      const deletedProfessor = await this.professorService.remove(+id, user.email);
       return res.status(HttpStatus.OK).send(deletedProfessor);
     } catch (err) {
-      if (
-        err instanceof Error &&
-        err.message === `No teacher was found with this id ${id}`
-      ) {
+      if (err instanceof Error && err.message === `No teacher was found with this id ${id}`) {
         return res.status(HttpStatus.NOT_FOUND).send(err.message);
       }
-      return res
-        .status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .send('Internal server error');
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Internal server error');
     }
   }
 }

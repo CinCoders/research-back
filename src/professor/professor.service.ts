@@ -24,19 +24,12 @@ import { Translation } from './entities/translation.entity';
 
 @Injectable()
 export class ProfessorService {
-  async create(
-    createProfessorDto: CreateProfessorDto,
-    queryRunner: QueryRunner,
-  ) {
+  async create(createProfessorDto: CreateProfessorDto, queryRunner: QueryRunner) {
     const professor = new Professor();
     professor.name = createProfessorDto.name;
     professor.identifier = createProfessorDto.identifier;
 
-    await AppDataSource.createQueryBuilder(queryRunner)
-      .insert()
-      .into(Professor)
-      .values(professor)
-      .execute();
+    await AppDataSource.createQueryBuilder(queryRunner).insert().into(Professor).values(professor).execute();
     return professor;
   }
 
@@ -56,16 +49,10 @@ export class ProfessorService {
           .where('cp.professor_id = p.id');
       }, 'computerPublications')
       .addSelect((subQuery) => {
-        return subQuery
-          .select(`COUNT(*)`, 'books')
-          .from(Book, 'b')
-          .where('b.professor_id = p.id');
+        return subQuery.select(`COUNT(*)`, 'books').from(Book, 'b').where('b.professor_id = p.id');
       }, 'books')
       .addSelect((subQuery) => {
-        return subQuery
-          .select(`COUNT(*)`, 'patents')
-          .from(Patent, 'pt')
-          .where('pt.professor_id = p.id');
+        return subQuery.select(`COUNT(*)`, 'patents').from(Patent, 'pt').where('pt.professor_id = p.id');
       }, 'patents')
       .addSelect((subQuery) => {
         return subQuery
@@ -95,9 +82,7 @@ export class ProfessorService {
   }
 
   async findOne(id?: number, lattes?: string, queryRunner?: QueryRunner) {
-    const query = AppDataSource.createQueryBuilder(queryRunner)
-      .select('p')
-      .from(Professor, 'p');
+    const query = AppDataSource.createQueryBuilder(queryRunner).select('p').from(Professor, 'p');
 
     if (id) {
       query.where('p.id=:professorId', { professorId: id });
@@ -182,10 +167,8 @@ export class ProfessorService {
   }
 
   changeString(type: string) {
-    if (type === Curriculum.ORIENTADOR_PRINCIPAL)
-      return Curriculum.ORIENTADOR_PRINCIPAL_FORMAT;
-    if (type === Curriculum.CO_ORIENTADOR)
-      return Curriculum.CO_ORIENTADOR_FORMAT;
+    if (type === Curriculum.ORIENTADOR_PRINCIPAL) return Curriculum.ORIENTADOR_PRINCIPAL_FORMAT;
+    if (type === Curriculum.CO_ORIENTADOR) return Curriculum.CO_ORIENTADOR_FORMAT;
   }
 
   async getStudents(filter: string, id?: string, lattes?: string) {
@@ -200,15 +183,9 @@ export class ProfessorService {
 
     let students: Advisee[] = [];
     if (filter === 'current') {
-      students = await studentsQuery
-        .andWhere('a.yearEnd IS NULL')
-        .orderBy('a.yearStart', 'DESC')
-        .getMany();
+      students = await studentsQuery.andWhere('a.yearEnd IS NULL').orderBy('a.yearStart', 'DESC').getMany();
     } else if (filter === 'concluded') {
-      students = await studentsQuery
-        .andWhere('a.yearStart IS NULL')
-        .orderBy('a.yearEnd', 'DESC')
-        .getMany();
+      students = await studentsQuery.andWhere('a.yearStart IS NULL').orderBy('a.yearEnd', 'DESC').getMany();
     }
 
     const studentsDto: AdviseeFormatDto[] = [];
@@ -226,9 +203,7 @@ export class ProfessorService {
   }
 
   async getProjects(id?: string, lattes?: string) {
-    const whereClause = id
-      ? 'p.professor_id = :param'
-      : 'pr.identifier = :param';
+    const whereClause = id ? 'p.professor_id = :param' : 'pr.identifier = :param';
     const param = id || lattes;
 
     const projects = await AppDataSource.createQueryBuilder()
@@ -274,9 +249,7 @@ export class ProfessorService {
   }
 
   async getPatents(id?: string, lattes?: string) {
-    const whereClause = id
-      ? 'p.professor_id = :param'
-      : 'p.identifier = :param';
+    const whereClause = id ? 'p.professor_id = :param' : 'p.identifier = :param';
     const param = id || lattes;
 
     const patents = await AppDataSource.createQueryBuilder()
@@ -369,11 +342,7 @@ export class ProfessorService {
 
     await queryRunner.startTransaction();
     try {
-      const professor: Professor | null = await this.findOne(
-        id,
-        undefined,
-        queryRunner,
-      );
+      const professor: Professor | null = await this.findOne(id, undefined, queryRunner);
 
       if (!professor) {
         throw new Error(`No teacher was found with this id ${id}`);

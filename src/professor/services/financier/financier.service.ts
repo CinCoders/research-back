@@ -22,11 +22,7 @@ export class FinancierService {
     financier.code = financierDto.code;
     financier.projectFinancier = [];
 
-    await AppDataSource.createQueryBuilder(queryRunner)
-      .insert()
-      .into(Financier)
-      .values(financier)
-      .execute();
+    await AppDataSource.createQueryBuilder(queryRunner).insert().into(Financier).values(financier).execute();
     return financier;
   }
 }

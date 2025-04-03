@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Post,
-  Query,
-  Res,
-  UploadedFiles,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { ImportXmlService } from './import-xml.service';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
@@ -30,14 +21,8 @@ export class ImportXmlController {
     AnyFilesInterceptor({
       dest: 'downloadedFiles',
       fileFilter: (req, file, callback) => {
-        if (
-          extname(file.originalname) !== '.xml' &&
-          extname(file.originalname) !== '.zip'
-        ) {
-          return callback(
-            new Error('Only XML and Zip files are allowed.'),
-            false,
-          );
+        if (extname(file.originalname) !== '.xml' && extname(file.originalname) !== '.zip') {
+          return callback(new Error('Only XML and Zip files are allowed.'), false);
         }
         callback(null, true);
       },

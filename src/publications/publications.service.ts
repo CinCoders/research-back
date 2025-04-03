@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PublicationsDto } from './dto/publications.dto';
 import { AppDataSource } from 'src/app.datasource';
+import { PublicationsDto } from './dto/publications.dto';
 
 @Injectable()
 export class PublicationsService {
@@ -19,11 +19,7 @@ export class PublicationsService {
       ${groupByYear ? 'year, ' : ''}
 	    sum(total) total, 
       sum(top) top, 
-      ${
-        groupByProfessor && !groupByYear
-          ? 'sum("top5Years") AS "top5Years", '
-          : ''
-      }
+      ${groupByProfessor && !groupByYear ? 'sum("top5Years") AS "top5Years", ' : ''}
       sum(a1) a1, 
       sum(a2) a2, 
       sum(a3) a3, 
@@ -70,14 +66,10 @@ export class PublicationsService {
       (!groupByProfessor && groupByYear ? ` GROUP BY year` : '');
 
     const joinJournalPublications =
-      `JOIN "journal_publication" "pp" on "pp"."professor_id"=p.id` +
-      whereClause +
-      groupBy;
+      `JOIN "journal_publication" "pp" on "pp"."professor_id"=p.id` + whereClause + groupBy;
 
     const joinConferencePublications =
-      `JOIN "conference_publication" "pp" on "pp"."professor_id"=p.id` +
-      whereClause +
-      groupBy;
+      `JOIN "conference_publication" "pp" on "pp"."professor_id"=p.id` + whereClause + groupBy;
 
     return (
       selectPublications +
@@ -91,16 +83,8 @@ export class PublicationsService {
           ? 'GROUP BY "professorName", "professorId", year ORDER BY "professorName" ASC, year DESC'
           : ''
       }
-      ${
-        groupByProfessor && !groupByYear
-          ? 'GROUP BY "professorName", "professorId" ORDER BY "professorName" ASC'
-          : ''
-      }
-      ${
-        !groupByProfessor && groupByYear
-          ? 'GROUP BY year ORDER BY year DESC'
-          : ''
-      }`
+      ${groupByProfessor && !groupByYear ? 'GROUP BY "professorName", "professorId" ORDER BY "professorName" ASC' : ''}
+      ${!groupByProfessor && groupByYear ? 'GROUP BY year ORDER BY year DESC' : ''}`
     );
   }
 
@@ -119,14 +103,7 @@ export class PublicationsService {
     await queryRunner.connect();
 
     const result: PublicationsDto[] = await queryRunner.query(
-      this.createQuery(
-        journalPublications,
-        conferencePublications,
-        groupByProfessor,
-        groupByYear,
-        startYear,
-        endYear,
-      ),
+      this.createQuery(journalPublications, conferencePublications, groupByProfessor, groupByYear, startYear, endYear),
     );
 
     await queryRunner.release();

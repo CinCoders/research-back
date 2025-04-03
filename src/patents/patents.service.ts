@@ -4,10 +4,7 @@ import { AppDataSource } from 'src/app.datasource';
 
 @Injectable()
 export class PatentsService {
-  async get(
-    groupByProfessor: boolean,
-    groupByYear: boolean,
-  ): Promise<PatentsDto[]> {
+  async get(groupByProfessor: boolean, groupByYear: boolean): Promise<PatentsDto[]> {
     const queryRunner = AppDataSource.createQueryRunner();
 
     await queryRunner.connect();
@@ -33,16 +30,8 @@ export class PatentsService {
         ? 'GROUP BY p.id, p.name, pat."developmentYear" ORDER BY p.name ASC, pat."developmentYear" DESC;'
         : ''
     }
-    ${
-      groupByProfessor && !groupByYear
-        ? 'GROUP BY p.id, p.name ORDER BY p.name ASC;'
-        : ''
-    }
-    ${
-      !groupByProfessor && groupByYear
-        ? 'GROUP BY pat."developmentYear" ORDER BY pat."developmentYear" DESC;'
-        : ''
-    }
+    ${groupByProfessor && !groupByYear ? 'GROUP BY p.id, p.name ORDER BY p.name ASC;' : ''}
+    ${!groupByProfessor && groupByYear ? 'GROUP BY pat."developmentYear" ORDER BY pat."developmentYear" DESC;' : ''}
   `);
 
     await queryRunner.release();

@@ -39,11 +39,7 @@ export class JournalService {
 
     await AppDataSource.manager.save(journalLog);
 
-    return await AppDataSource.createQueryBuilder()
-      .insert()
-      .into(Journal)
-      .values(journal)
-      .execute();
+    return await AppDataSource.createQueryBuilder().insert().into(Journal).values(journal).execute();
   }
 
   async findAll(queryRunner: QueryRunner | undefined) {

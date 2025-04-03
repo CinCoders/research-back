@@ -1,11 +1,5 @@
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Professor } from './professor.entity';
 
 @ApiTags('Patent')

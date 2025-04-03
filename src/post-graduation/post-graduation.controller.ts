@@ -26,12 +26,6 @@ export class PostGraduationController {
     @Query('startYear') startYear: number,
     @Query('endYear') endYear: number,
   ): Promise<StudentsDto[]> {
-    return await this.postGraduationService.get(
-      groupByProfessor,
-      groupByYear,
-      filter,
-      startYear,
-      endYear,
-    );
+    return await this.postGraduationService.get(groupByProfessor, groupByYear, filter, startYear, endYear);
   }
 }

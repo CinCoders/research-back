@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AlterJournalPublication1663700407696
-  implements MigrationInterface
-{
+export class AlterJournalPublication1663700407696 implements MigrationInterface {
   name = 'AlterJournalPublication1663700407696';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
