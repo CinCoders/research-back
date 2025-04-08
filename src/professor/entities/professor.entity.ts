@@ -1,12 +1,5 @@
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Advisee } from './advisee.entity';
 import { JournalPublication } from './journal-publication.entity';
 import { ConferencePublication } from './conference-publication.entity';
@@ -34,20 +27,12 @@ export class Professor {
   @Column({ name: 'name', length: 100 })
   name!: string;
 
-  @OneToMany(
-    () => JournalPublication,
-    (journalPublication) => journalPublication.professor,
-    { cascade: true },
-  )
+  @OneToMany(() => JournalPublication, (journalPublication) => journalPublication.professor, { cascade: true })
   journalPublication!: JournalPublication[];
 
-  @OneToMany(
-    () => ConferencePublication,
-    (conference) => conference.professor,
-    {
-      cascade: true,
-    },
-  )
+  @OneToMany(() => ConferencePublication, (conference) => conference.professor, {
+    cascade: true,
+  })
   conferencePublications!: ConferencePublication[];
 
   @OneToMany(() => Advisee, (advisee) => advisee.professor, { cascade: true })
@@ -64,11 +49,7 @@ export class Professor {
   @OneToMany(() => Patent, (patent) => patent.professor, { cascade: true })
   patent!: Patent[];
 
-  @OneToMany(
-    () => ArtisticProduction,
-    (artisticProduction) => artisticProduction.professor,
-    { cascade: true },
-  )
+  @OneToMany(() => ArtisticProduction, (artisticProduction) => artisticProduction.professor, { cascade: true })
   artisticProduction!: ArtisticProduction[];
 
   @ApiProperty({ name: 'scholarship', type: Scholarship, nullable: true })

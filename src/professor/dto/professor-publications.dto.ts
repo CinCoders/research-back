@@ -1,4 +1,4 @@
-import { ApiTags, ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('ProfessorPublicationsDto')
 export class ProfessorPublicationsDto {
@@ -7,6 +7,9 @@ export class ProfessorPublicationsDto {
 
   @ApiProperty({ name: 'eventJournal', type: String })
   eventJournal!: string | null;
+
+  @ApiProperty({ name: 'eventJournal', type: Boolean })
+  isEvent!: boolean;
 
   @ApiProperty({ name: 'acronymIssn', type: String })
   acronymIssn!: string | null;
@@ -22,4 +25,10 @@ export class ProfessorPublicationsDto {
 
   @ApiProperty({ name: 'isTop', type: Boolean })
   isTop?: boolean;
+
+  @ApiProperty({ name: 'authors', type: String })
+  authors!: string;
+
+  @ApiProperty({ name: 'doi', type: String, nullable: true })
+  doi?: string;
 }

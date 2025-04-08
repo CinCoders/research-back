@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  ParseBoolPipe,
-  ParseIntPipe,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, ParseBoolPipe, ParseIntPipe, Query } from '@nestjs/common';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'nest-keycloak-connect';
 import { SystemRoles } from 'src/types/enums';
@@ -22,8 +16,7 @@ export class PublicationsController {
   @Get()
   @ApiResponse({
     status: 200,
-    description:
-      'Returns article or conferences qualis metrics for each professor.',
+    description: 'Returns article or conferences qualis metrics for each professor.',
     type: PublicationsDto,
     isArray: true,
   })
@@ -35,13 +28,6 @@ export class PublicationsController {
     @Query('startYear', ParseIntPipe) startYear: number,
     @Query('endYear', ParseIntPipe) endYear: number,
   ): Promise<PublicationsDto[]> {
-    return await this.publicationsService.get(
-      articles,
-      conferences,
-      groupByProfessor,
-      groupByYear,
-      startYear,
-      endYear,
-    );
+    return await this.publicationsService.get(articles, conferences, groupByProfessor, groupByYear, startYear, endYear);
   }
 }

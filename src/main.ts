@@ -15,17 +15,9 @@ async function bootstrap() {
       ca?: Buffer | null;
     } = {};
 
-    httpsOptions.key = fs.readFileSync(
-      path.join(__dirname, '..', './certs/certificate.key'),
-    );
-    httpsOptions.cert = fs.readFileSync(
-      path.join(__dirname, '..', './certs/certificate.crt'),
-    );
-    const caCertificatePath = path.join(
-      __dirname,
-      '..',
-      './certs/intermediate.pem',
-    );
+    httpsOptions.key = fs.readFileSync(path.join(__dirname, '..', './certs/certificate.key'));
+    httpsOptions.cert = fs.readFileSync(path.join(__dirname, '..', './certs/certificate.crt'));
+    const caCertificatePath = path.join(__dirname, '..', './certs/intermediate.pem');
     if (fs.existsSync(caCertificatePath)) {
       httpsOptions.ca = fs.readFileSync(caCertificatePath);
     }

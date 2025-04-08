@@ -30,11 +30,7 @@ export class ProjectService {
       project.yearStart = +projectDto.year;
       project.periodFlag = projectDto.periodFlag;
       project.projectFinancier = [];
-      await AppDataSource.createQueryBuilder(queryRunner)
-        .insert()
-        .into(Project)
-        .values(project)
-        .execute();
+      await AppDataSource.createQueryBuilder(queryRunner).insert().into(Project).values(project).execute();
     } catch (error) {
       await logErrorToDatabase(error, EntityType.PROJECT, undefined);
       throw error;
@@ -42,12 +38,7 @@ export class ProjectService {
     return project;
   }
 
-  async addFinancierToProject(
-    project: Project,
-    financier: Financier,
-    nature: string,
-    queryRunner: QueryRunner,
-  ) {
+  async addFinancierToProject(project: Project, financier: Financier, nature: string, queryRunner: QueryRunner) {
     const projectFinancier = new ProjectFinancier();
     projectFinancier.project = project;
     projectFinancier.financier = financier;

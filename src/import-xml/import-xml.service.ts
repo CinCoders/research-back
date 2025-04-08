@@ -1,46 +1,46 @@
 import { Injectable } from '@nestjs/common';
+import extract from 'extract-zip';
+import * as fs from 'fs';
 import { readdir, readFile, rename, unlink } from 'fs/promises';
-import { parseStringPromise } from 'xml2js';
+import { extname } from 'path';
+import { AdviseeDto } from 'src/professor/dto/advisee.dto';
+import { ConferenceDto } from 'src/professor/dto/conference.dto';
+import { CreateProfessorDto } from 'src/professor/dto/create-professor.dto';
+import { FinancierDto } from 'src/professor/dto/financier.dto';
+import { JournalPublicationDto } from 'src/professor/dto/journal-publication.dto';
+import { ProjectDto } from 'src/professor/dto/project.dto';
+import { TranslationDto } from 'src/professor/dto/translation.dto';
 import { Financier } from 'src/professor/entities/financier.entity';
-import { JournalService } from 'src/qualis/qualis.service';
-import { ConferenceService } from 'src/qualis/conference/conference.service';
+import { Professor } from 'src/professor/entities/professor.entity';
 import { ProfessorService } from 'src/professor/professor.service';
-import { ConferencePublicationService } from 'src/professor/services/conference/conference.service';
-import { JournalPublicationService } from 'src/professor/services/article/journal-publication.service';
 import { AdviseeService } from 'src/professor/services/advisee/advisee.service';
+import { JournalPublicationService } from 'src/professor/services/article/journal-publication.service';
+import { ConferencePublicationService } from 'src/professor/services/conference/conference.service';
 import { FinancierService } from 'src/professor/services/financier/financier.service';
 import { ProjectService } from 'src/professor/services/project/project.service';
-import { JournalPublicationDto } from 'src/professor/dto/journal-publication.dto';
-import { Professor } from 'src/professor/entities/professor.entity';
-import { Journal } from 'src/qualis/entities/journal.entity';
-import { Conference } from 'src/qualis/entities/conference.entity';
-import { ConferenceDto } from 'src/professor/dto/conference.dto';
-import { AdviseeDto } from 'src/professor/dto/advisee.dto';
-import { ProjectDto } from 'src/professor/dto/project.dto';
-import { FinancierDto } from 'src/professor/dto/financier.dto';
-import { CreateProfessorDto } from 'src/professor/dto/create-professor.dto';
-import { Curriculum } from './curriculum.enum';
-import logErrorToDatabase from 'src/utils/exception-filters/log-error';
-import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
-import { extname } from 'path';
-import * as fs from 'fs';
-import extract from 'extract-zip';
-import { QueryRunner } from 'typeorm';
-import { Log } from 'src/utils/exception-filters/log.entity';
-import { ImportXml } from './entities/import-xml.entity';
-import { Status } from 'src/types/enums';
-import { ImportXmlDto } from './dto/import-xml.dto';
-import { PaginationDto } from '../types/pagination.dto';
-import { v4 as uuidv4 } from 'uuid';
-import { AppDataSource } from '.././app.datasource';
-import { BookDto } from '../professor/dto/book.dto';
-import { BookService } from '../professor/services/book/book.service';
-import { PatentDto } from '../professor/dto/patent.dto';
-import { PatentService } from '../professor/services/patent/patent.service';
-import { ArtisticProductionDto } from '../professor/dto/artistic-production.dto';
-import { ArtisticProductionService } from '../professor/services/artistic-production/artistic-production.service';
-import { TranslationDto } from 'src/professor/dto/translation.dto';
 import { TranslationService } from 'src/professor/services/translation/translation/translation.service';
+import { ConferenceService } from 'src/qualis/conference/conference.service';
+import { Conference } from 'src/qualis/entities/conference.entity';
+import { Journal } from 'src/qualis/entities/journal.entity';
+import { JournalService } from 'src/qualis/qualis.service';
+import { Status } from 'src/types/enums';
+import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
+import logErrorToDatabase from 'src/utils/exception-filters/log-error';
+import { Log } from 'src/utils/exception-filters/log.entity';
+import { QueryRunner } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
+import { parseStringPromise } from 'xml2js';
+import { AppDataSource } from '.././app.datasource';
+import { ArtisticProductionDto } from '../professor/dto/artistic-production.dto';
+import { BookDto } from '../professor/dto/book.dto';
+import { PatentDto } from '../professor/dto/patent.dto';
+import { ArtisticProductionService } from '../professor/services/artistic-production/artistic-production.service';
+import { BookService } from '../professor/services/book/book.service';
+import { PatentService } from '../professor/services/patent/patent.service';
+import { PaginationDto } from '../types/pagination.dto';
+import { Curriculum } from './curriculum.enum';
+import { ImportXmlDto } from './dto/import-xml.dto';
+import { ImportXml } from './entities/import-xml.entity';
 
 @Injectable()
 export class ImportXmlService {
@@ -218,7 +218,7 @@ export class ImportXmlService {
   }
 
   async insertProfessor(createProfessorDto: CreateProfessorDto, queryRunner: QueryRunner) {
-    let professor = await this.professorService.findOneByIdentifier(createProfessorDto.identifier, queryRunner);
+    let professor = await this.professorService.findOne(undefined, createProfessorDto.identifier, queryRunner);
 
     if (!professor) {
       professor = await this.professorService.create(createProfessorDto, queryRunner);
@@ -1325,7 +1325,7 @@ export class ImportXmlService {
 
   renameFile = (oldPath: string, newPath: string) => {
     return new Promise((resolve, reject) => {
-      fs.rename(oldPath, newPath, err => {
+      fs.rename(oldPath, newPath, (err) => {
         if (err) {
           console.error('Error occurred during file renaming:', err);
           reject(err);
@@ -1364,7 +1364,7 @@ export class ImportXmlService {
       await queryRunner.release();
     }
 
-    this.insertDataToDatabase(files, username).catch(err => {
+    this.insertDataToDatabase(files, username).catch((err) => {
       logErrorToDatabase(err, EntityType.XML, undefined);
     });
   }

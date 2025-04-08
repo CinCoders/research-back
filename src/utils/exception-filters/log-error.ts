@@ -1,11 +1,7 @@
 import { Log } from './log.entity';
 import { AppDataSource } from 'src/app.datasource';
 
-const logErrorToDatabase = async (
-  err: unknown,
-  entityType: string,
-  entityId?: string,
-) => {
+const logErrorToDatabase = async (err: unknown, entityType: string, entityId?: string) => {
   if (err instanceof Error) {
     await AppDataSource.createQueryBuilder()
       .insert()

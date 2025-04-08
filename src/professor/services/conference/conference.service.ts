@@ -82,7 +82,7 @@ export class ConferencePublicationService {
 
           if (bestMatchEvent.rating >= 1) {
             const topConference: Conference | undefined = conferenceList.find(
-              top => top.name === bestMatchEvent.target,
+              (top) => top.name === bestMatchEvent.target,
             );
             if (topConference) {
               conferencePublication.conference = topConference;
@@ -107,7 +107,7 @@ export class ConferencePublicationService {
 
           if (bestMatchProceedings.rating >= 1) {
             const conference: Conference | undefined = conferenceList.find(
-              top => top.name === bestMatchProceedings.target,
+              (top) => top.name === bestMatchProceedings.target,
             );
             if (conference) {
               conferencePublication.conference = conference;
@@ -185,7 +185,7 @@ export class ConferencePublicationService {
 
           if (highestMatch.rating >= 1 && index > -1) {
             const topConference: Conference | undefined = conferenceList.find(
-              top => top.acronym === highestMatch.target,
+              (top) => top.acronym === highestMatch.target,
             );
             if (topConference) {
               conferencePublication.conference = topConference;

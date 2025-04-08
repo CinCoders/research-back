@@ -40,21 +40,9 @@ export class PostGraduationService {
         : ''
     }
     
-    ${
-      groupByProfessor && groupByYear
-        ? 'GROUP BY p.id, year ORDER BY p.name ASC, year DESC;'
-        : ''
-    }
-    ${
-      groupByProfessor && !groupByYear
-        ? 'GROUP BY p.id ORDER BY p.name ASC;'
-        : ''
-    }
-    ${
-      !groupByProfessor && groupByYear
-        ? 'GROUP BY year ORDER BY year DESC;'
-        : ''
-    }`);
+    ${groupByProfessor && groupByYear ? 'GROUP BY p.id, year ORDER BY p.name ASC, year DESC;' : ''}
+    ${groupByProfessor && !groupByYear ? 'GROUP BY p.id ORDER BY p.name ASC;' : ''}
+    ${!groupByProfessor && groupByYear ? 'GROUP BY year ORDER BY year DESC;' : ''}`);
 
     await queryRunner.release();
 

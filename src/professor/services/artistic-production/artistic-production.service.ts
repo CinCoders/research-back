@@ -8,10 +8,7 @@ import { QueryRunner } from 'typeorm';
 
 @Injectable()
 export class ArtisticProductionService {
-  async findOne(
-    artisticProductionDto: ArtisticProductionDto,
-    queryRunner: QueryRunner | undefined,
-  ) {
+  async findOne(artisticProductionDto: ArtisticProductionDto, queryRunner: QueryRunner | undefined) {
     try {
       return await AppDataSource.createQueryBuilder(queryRunner)
         .select('a')
@@ -26,10 +23,7 @@ export class ArtisticProductionService {
     }
   }
 
-  async createArtisticProduction(
-    artisticProductionDto: ArtisticProductionDto,
-    queryRunner: QueryRunner,
-  ) {
+  async createArtisticProduction(artisticProductionDto: ArtisticProductionDto, queryRunner: QueryRunner) {
     try {
       const artisticProduction = new ArtisticProduction();
       artisticProduction.title = artisticProductionDto.title;
@@ -37,8 +31,7 @@ export class ArtisticProductionService {
       artisticProduction.language = artisticProductionDto.language;
       artisticProduction.authors = artisticProductionDto.authors;
       artisticProduction.authorActivity = artisticProductionDto.authorActivity;
-      artisticProduction.promotingInstitution =
-        artisticProductionDto.promotingInstitution;
+      artisticProduction.promotingInstitution = artisticProductionDto.promotingInstitution;
       artisticProduction.professor = artisticProductionDto.professor;
       artisticProduction.country = artisticProductionDto.country;
       artisticProduction.bigArea = artisticProductionDto.bigArea;
@@ -54,11 +47,7 @@ export class ArtisticProductionService {
 
       return artisticProduction;
     } catch (error) {
-      await logErrorToDatabase(
-        error,
-        EntityType.ARTISTIC_PRODUCTION,
-        undefined,
-      );
+      await logErrorToDatabase(error, EntityType.ARTISTIC_PRODUCTION, undefined);
       throw error;
     }
   }

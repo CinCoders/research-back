@@ -14,7 +14,7 @@ export class JournalPublication {
   id!: number;
 
   @ApiProperty({ name: 'professor', type: Number })
-  @ManyToOne(() => Professor, professor => professor.journalPublication)
+  @ManyToOne(() => Professor, (professor) => professor.journalPublication)
   @JoinColumn({ name: 'professor_id' })
   professor!: Professor;
 

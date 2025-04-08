@@ -1,12 +1,7 @@
 import { Log } from './log.entity';
 import { AppDataSource } from 'src/app.datasource';
 
-const createLog = async (
-  entityType: string,
-  message: string,
-  entityId?: string,
-  executionContextHost?: string,
-) => {
+const createLog = async (entityType: string, message: string, entityId?: string, executionContextHost?: string) => {
   await AppDataSource.createQueryBuilder()
     .insert()
     .into(Log)

@@ -47,11 +47,7 @@ export class ConferenceService {
 
     await AppDataSource.manager.save(conferenceLog);
 
-    return await AppDataSource.createQueryBuilder()
-      .insert()
-      .into(Conference)
-      .values(conference)
-      .execute();
+    return await AppDataSource.createQueryBuilder().insert().into(Conference).values(conference).execute();
   }
 
   async findAll(queryRunner: QueryRunner | undefined) {
@@ -65,11 +61,7 @@ export class ConferenceService {
       .getMany();
   }
 
-  async update(
-    id: number,
-    updateConferenceDto: UpdateConferenceDto,
-    email: string,
-  ) {
+  async update(id: number, updateConferenceDto: UpdateConferenceDto, email: string) {
     const conference = await AppDataSource.manager.findOne(Conference, {
       where: { id: id },
     });
