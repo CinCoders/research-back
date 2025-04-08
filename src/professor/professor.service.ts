@@ -36,25 +36,25 @@ export class ProfessorService {
   async findAll(): Promise<ProfessorTableDto[]> {
     const professors = await AppDataSource.createQueryBuilder()
       .select(['p.id as id', 'p.identifier as identifier', 'p.name as name'])
-      .addSelect((subQuery) => {
+      .addSelect(subQuery => {
         return subQuery
           .select(`COUNT(*)`, 'computerArticles')
           .from(JournalPublication, 'jp')
           .where('jp.professor_id = p.id');
       }, 'computerArticles')
-      .addSelect((subQuery) => {
+      .addSelect(subQuery => {
         return subQuery
           .select(`COUNT(*)`, 'computerPublications')
           .from(ConferencePublication, 'cp')
           .where('cp.professor_id = p.id');
       }, 'computerPublications')
-      .addSelect((subQuery) => {
+      .addSelect(subQuery => {
         return subQuery.select(`COUNT(*)`, 'books').from(Book, 'b').where('b.professor_id = p.id');
       }, 'books')
-      .addSelect((subQuery) => {
+      .addSelect(subQuery => {
         return subQuery.select(`COUNT(*)`, 'patents').from(Patent, 'pt').where('pt.professor_id = p.id');
       }, 'patents')
-      .addSelect((subQuery) => {
+      .addSelect(subQuery => {
         return subQuery
           .select(`COUNT(*)`, 'artisticProductions')
           .from(ArtisticProduction, 'ap')
@@ -65,7 +65,7 @@ export class ProfessorService {
       .getRawMany();
 
     const result: ProfessorTableDto[] = [];
-    professors.forEach((professor) => {
+    professors.forEach(professor => {
       result.push({
         professorId: professor.id,
         professorName: professor.name,
@@ -189,7 +189,7 @@ export class ProfessorService {
     }
 
     const studentsDto: AdviseeFormatDto[] = [];
-    students.forEach((advisee) => {
+    students.forEach(advisee => {
       studentsDto.push({
         name: advisee.name,
         degree: advisee.degree,
@@ -217,13 +217,13 @@ export class ProfessorService {
       .getMany();
 
     const professorProjects: ProfessorProjectFinancierDto[] = [];
-    projects.forEach((project) => {
+    projects.forEach(project => {
       let capes = false;
       let cnpq = false;
       let facepe = false;
       let anotherFinanciers = false;
 
-      project.projectFinancier.forEach((projectFinancier) => {
+      project.projectFinancier.forEach(projectFinancier => {
         // checar o código capes, cnpq, facepe
         if (projectFinancier.nature === Curriculum.AUXILIO_FINANCEIRO) {
           if (projectFinancier.financier.code == '876400000009') capes = true;
@@ -260,7 +260,7 @@ export class ProfessorService {
       .orderBy('pt.developmentYear', 'DESC')
       .getMany();
 
-    const professorPatentsDto: ProfessorPatentDto[] = patents.map((patent) => {
+    const professorPatentsDto: ProfessorPatentDto[] = patents.map(patent => {
       const professorPatentDto: ProfessorPatentDto = new ProfessorPatentDto();
       professorPatentDto.id = patent.id;
       professorPatentDto.title = patent.title;
