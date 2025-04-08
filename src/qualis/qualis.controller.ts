@@ -27,10 +27,7 @@ export class QualisController {
   })
   @Roles({ roles: [SystemRoles.ADMIN] })
   @Post('conferences')
-  createConference(
-    @AuthenticatedUser() user: any,
-    @Body() createConferenceDto: CreateConferenceDto,
-  ) {
+  createConference(@AuthenticatedUser() user: any, @Body() createConferenceDto: CreateConferenceDto) {
     return this.conferencesService.create(createConferenceDto, user.email);
   }
 
@@ -41,10 +38,7 @@ export class QualisController {
   })
   @Roles({ roles: [SystemRoles.ADMIN] })
   @Post('journals')
-  createJournal(
-    @Body() createJournalDto: CreateJournalDto,
-    @AuthenticatedUser() user: any,
-  ) {
+  createJournal(@Body() createJournalDto: CreateJournalDto, @AuthenticatedUser() user: any) {
     return this.journalsService.create(createJournalDto, user.email);
   }
 
@@ -94,11 +88,7 @@ export class QualisController {
   })
   @Roles({ roles: [SystemRoles.ADMIN] })
   @Patch('journals/:id')
-  updatePeriodic(
-    @Param('id') id: number,
-    @Body() updateJournals: UpdateJournalDto,
-    @AuthenticatedUser() user: any,
-  ) {
+  updatePeriodic(@Param('id') id: number, @Body() updateJournals: UpdateJournalDto, @AuthenticatedUser() user: any) {
     return this.journalsService.update(+id, updateJournals, user.email);
   }
 }

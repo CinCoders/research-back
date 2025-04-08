@@ -34,21 +34,9 @@ export class ProjectsService {
     WHERE pr.year IS NOT NULL
     AND pr.year >= ${startYear}
     AND pr.year <= ${endYear}
-    ${
-      groupByProfessor && groupByYear
-        ? 'GROUP BY p.id, pr.year ORDER BY p.name ASC, pr.year DESC;'
-        : ''
-    }
-    ${
-      groupByProfessor && !groupByYear
-        ? 'GROUP BY p.id ORDER BY p.name ASC;'
-        : ''
-    }
-    ${
-      !groupByProfessor && groupByYear
-        ? 'GROUP BY pr.year ORDER BY pr.year DESC;'
-        : ''
-    }
+    ${groupByProfessor && groupByYear ? 'GROUP BY p.id, pr.year ORDER BY p.name ASC, pr.year DESC;' : ''}
+    ${groupByProfessor && !groupByYear ? 'GROUP BY p.id ORDER BY p.name ASC;' : ''}
+    ${!groupByProfessor && groupByYear ? 'GROUP BY pr.year ORDER BY pr.year DESC;' : ''}
   `);
 
     await queryRunner.release();

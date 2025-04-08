@@ -21,8 +21,7 @@ export class Page<T> {
   totalElements!: number;
 
   @ApiProperty({
-    description:
-      'The size of the page of a table (number of elements to display)',
+    description: 'The size of the page of a table (number of elements to display)',
     type: Number,
   })
   pageSize!: number;

@@ -13,7 +13,7 @@ export class Translation {
   id!: number;
 
   @ApiProperty({ name: 'professor', type: Number })
-  @ManyToOne(() => Professor, professor => professor.book)
+  @ManyToOne(() => Professor, (professor) => professor.book)
   @JoinColumn({ name: 'professor_id' })
   professor!: Professor;
 

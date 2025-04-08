@@ -30,8 +30,7 @@ export class PatentService {
       patent.developmentYear = patentDto.developmentYear;
       patent.category = patentDto.category;
       patent.country = patentDto.country;
-      patent.depositRegistrationInstitution =
-        patentDto.depositRegistrationInstitution;
+      patent.depositRegistrationInstitution = patentDto.depositRegistrationInstitution;
       patent.depositantName = patentDto.depositantName;
       patent.patentType = patentDto.patentType;
       patent.registryCode = patentDto.registryCode;
@@ -39,11 +38,7 @@ export class PatentService {
       patent.professor = patentDto.professor;
       patent.authors = patentDto.authors;
 
-      await AppDataSource.createQueryBuilder(queryRunner)
-        .insert()
-        .into(Patent)
-        .values(patent)
-        .execute();
+      await AppDataSource.createQueryBuilder(queryRunner).insert().into(Patent).values(patent).execute();
 
       return patent;
     } catch (error) {

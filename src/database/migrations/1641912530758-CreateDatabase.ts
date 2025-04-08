@@ -67,30 +67,14 @@ export class CreateDatabase1641912530758 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "advisee" DROP CONSTRAINT "FK_0ffcb8843391f18881f792bc7a7"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "project" DROP CONSTRAINT "FK_c564def4db838c143ec9ece5799"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "project_financier" DROP CONSTRAINT "FK_7d1b6591047d40507ab553b87bb"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "project_financier" DROP CONSTRAINT "FK_aa7b76370cd5b310a4a2769cfeb"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "conference_publication" DROP CONSTRAINT "FK_a7a19af453e9843f1e1dbd99c91"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "conference_publication" DROP CONSTRAINT "FK_52f4f00c36e689a1b3e42804ca8"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "journal_publication" DROP CONSTRAINT "FK_d65a21f1756aca1b7b2fe946619"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "journal_publication" DROP CONSTRAINT "FK_9c3f0fd2037da0572c6d0819d0d"`,
-    );
+    await queryRunner.query(`ALTER TABLE "advisee" DROP CONSTRAINT "FK_0ffcb8843391f18881f792bc7a7"`);
+    await queryRunner.query(`ALTER TABLE "project" DROP CONSTRAINT "FK_c564def4db838c143ec9ece5799"`);
+    await queryRunner.query(`ALTER TABLE "project_financier" DROP CONSTRAINT "FK_7d1b6591047d40507ab553b87bb"`);
+    await queryRunner.query(`ALTER TABLE "project_financier" DROP CONSTRAINT "FK_aa7b76370cd5b310a4a2769cfeb"`);
+    await queryRunner.query(`ALTER TABLE "conference_publication" DROP CONSTRAINT "FK_a7a19af453e9843f1e1dbd99c91"`);
+    await queryRunner.query(`ALTER TABLE "conference_publication" DROP CONSTRAINT "FK_52f4f00c36e689a1b3e42804ca8"`);
+    await queryRunner.query(`ALTER TABLE "journal_publication" DROP CONSTRAINT "FK_d65a21f1756aca1b7b2fe946619"`);
+    await queryRunner.query(`ALTER TABLE "journal_publication" DROP CONSTRAINT "FK_9c3f0fd2037da0572c6d0819d0d"`);
     await queryRunner.query(`DROP TABLE "logs"`);
     await queryRunner.query(`DROP TABLE "advisee"`);
     await queryRunner.query(`DROP TABLE "professor"`);
