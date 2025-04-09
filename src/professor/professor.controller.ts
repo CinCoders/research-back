@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
+import { AuthenticatedUser, Public, Roles } from 'nest-keycloak-connect';
 import { ProfessorPatentDto } from 'src/patents/dto/professor-patent.dto';
 import { SystemRoles } from 'src/types/enums';
 import { AdviseeFormatDto } from './dto/advisee-format.dto';
@@ -23,7 +23,6 @@ import { ProfessorTableDto } from './dto/professor-table.dto';
 import { Professor } from './entities/professor.entity';
 import { ProfessorService } from './professor.service';
 
-@Roles({ roles: [SystemRoles.USERS] })
 @ApiTags('Professor Module')
 @Controller('professors')
 @ApiOAuth2([])
@@ -35,6 +34,7 @@ export class ProfessorController {
     isArray: true,
     type: ProfessorTableDto,
   })
+  @Roles({ roles: [SystemRoles.USERS] })
   @Get()
   async get(): Promise<ProfessorTableDto[]> {
     return await this.professorService.findAll();
@@ -45,6 +45,7 @@ export class ProfessorController {
     description: 'Returns professor.',
     type: Professor,
   })
+  @Public()
   @Get('find')
   async getProfessor(@Query() { id, lattes }: IdentifierQueryParamsDTO) {
     return await this.professorService.findOne(Number(id), lattes);
@@ -56,6 +57,7 @@ export class ProfessorController {
     isArray: true,
     type: ProfessorPublicationsDto,
   })
+  @Public()
   @Get('publications')
   getPublications(
     @Query('journalPublications', new ValidationPipe({ transform: true }))
@@ -80,6 +82,7 @@ export class ProfessorController {
     isArray: true,
     type: AdviseeFormatDto,
   })
+  @Public()
   @Get('students')
   getStudents(
     @Query('filter', FilterValidationPipe) filter: string,
@@ -101,6 +104,7 @@ export class ProfessorController {
     isArray: true,
     type: ProfessorProjectFinancierDto,
   })
+  @Public()
   @Get('projects')
   getProjects(@Query() { id, lattes }: IdentifierQueryParamsDTO): Promise<ProfessorProjectFinancierDto[]> {
     return this.professorService.getProjects(id, lattes);
@@ -112,6 +116,7 @@ export class ProfessorController {
     isArray: true,
     type: ProfessorPatentDto,
   })
+  @Public()
   @Get('patents')
   getPatents(@Query() { id, lattes }: IdentifierQueryParamsDTO): Promise<ProfessorPatentDto[]> {
     return this.professorService.getPatents(id, lattes);
@@ -123,6 +128,7 @@ export class ProfessorController {
     type: Professor,
   })
   @ApiResponse({ status: 404, description: 'Professor was not found' })
+  @Roles({ roles: [SystemRoles.USERS] })
   @Delete(':id')
   async deleteProfessor(@AuthenticatedUser() user: any, @Param('id') id: string, @Res() res: Response) {
     try {
