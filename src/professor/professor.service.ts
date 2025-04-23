@@ -248,7 +248,7 @@ export class ProfessorService {
   }
 
   async getPatents(id?: string, lattes?: string) {
-    const whereClause = id ? 'p.professor_id = :param' : 'p.identifier = :param';
+    const whereClause = id ? 'p.id = :param' : 'p.identifier = :param';
     const param = id || lattes;
 
     const patents = await AppDataSource.createQueryBuilder()
