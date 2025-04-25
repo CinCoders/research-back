@@ -93,7 +93,6 @@ export class ProfessorService {
     }
 
     const result = await query.getOne();
-    await queryRunner?.release();
 
     return result;
   }
@@ -119,14 +118,14 @@ export class ProfessorService {
     ${
       journalPublications
         ? `
-      SELECT 
-        jp.title, 
-        jp.journal_title as "eventJournal", 
+      SELECT
+        jp.title,
+        jp.journal_title as "eventJournal",
         jp.issn as "acronymIssn",
-        'journal' as type, 
+        'journal' as type,
         false as "isEvent",
-        jp.year as year, 
-        jp.qualis, 
+        jp.year as year,
+        jp.qualis,
         jp.is_top as "isTop",
         jp.doi as doi,
         jp.authors as authors
@@ -140,14 +139,14 @@ export class ProfessorService {
     ${
       conferencePublications
         ? `
-      SELECT 
-        c.title, 
-        c.event as "eventJournal", 
+      SELECT
+        c.title,
+        c.event as "eventJournal",
         cq.acronym as "acronymIssn",
-        'conference' as type, 
+        'conference' as type,
         true as "isEvent",
-        c.year as year, 
-        c.qualis, 
+        c.year as year,
+        c.qualis,
         c.is_top as "isTop",
         c.doi as doi,
         c.authors as authors
@@ -249,7 +248,7 @@ export class ProfessorService {
   }
 
   async getPatents(id?: string, lattes?: string) {
-    const whereClause = id ? 'p.professor_id = :param' : 'p.identifier = :param';
+    const whereClause = id ? 'p.id = :param' : 'p.identifier = :param';
     const param = id || lattes;
 
     const patents = await AppDataSource.createQueryBuilder()
