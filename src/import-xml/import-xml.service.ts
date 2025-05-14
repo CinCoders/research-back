@@ -191,7 +191,7 @@ export class ImportXmlService {
       });
     } else {
       try {
-        await rename(file.path, this.XML_PATH + '/' + file.originalname);
+        await this.renameFile(file.path, this.XML_PATH + '/' + file.originalname);
         file.path = this.XML_PATH + '/' + file.originalname;
       } catch (error) {
         if (error instanceof Error) {
