@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { readdir, unlink, rename } from 'fs/promises';
 import { AppDataSource } from 'src/app.datasource';
-import { Curriculum } from 'src/import-xml/curriculum.enum';
+import { Curriculum } from '../import-xml/curriculum.enum';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
 import { ArtisticProductionDto } from 'src/professor/dto/artistic-production.dto';
 import { BookDto } from 'src/professor/dto/book.dto';
@@ -88,11 +88,15 @@ export class ImportJsonService {
     }
 
     async processImportJson(file: Express.Multer.File){
-      if(extname(file.originalname) === '.zip'){
-        await this.unzipFile(file);
+      try {
+        if (extname(file.originalname) === '.zip') {
+          await this.unzipFile(file);
+        }
+        await this.splitJsonData(file.path);
+        await this.insertDataToDatabase();
+      } catch (err) {
+        await logErrorToDatabase(err, EntityType.IMPORT);
       }
-      await this.splitJsonData(file.path);
-      await this.insertDataToDatabase();
     }
 
     async deleteFiles() {
@@ -102,6 +106,22 @@ export class ImportJsonService {
                 await unlink(this.JSON_PATH + '/' + file);
             }
         }
+    }
+
+    async listAllJsons() {
+      const files = await fs.promises.readdir(this.JSON_PATH);
+      const json_files = files.filter((f) => f.endsWith('.json'));
+
+      for (const file of json_files){
+        const file_path = `${this.JSON_PATH}/${file}`;
+        const raw = await fs.promises.readFile(file_path, 'utf-8');
+        const json = JSON.parse(raw);
+
+        const id = json[Curriculum.NUMERO_IDENTIFICADOR];
+        const name = json[Curriculum.NOME_COMPLETO];
+
+        
+      }
     }
 
     getProfessorData(json: any) {
@@ -845,7 +865,7 @@ export class ImportJsonService {
         return adviseeDto;
     }
 
-    async creatAdvisees(advisees: any, professor: Professor, queryRunner: QueryRunner, program: string, programOrientation: string){
+    async createAdvisees(advisees: any, professor: Professor, queryRunner: QueryRunner, program: string, programOrientation: string){
       for(let i = 0; advisees[programOrientation][i] !== undefined; i++){
         const adviseeData = advisees[programOrientation][i];
         const adviseeDto = this.getAdviseeData(adviseeData, professor, program);
@@ -861,19 +881,19 @@ export class ImportJsonService {
         if (!advisees) return;
         try {
             if (advisees?.[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_MESTRADO]) {
-                await this.creatAdvisees(advisees, professor, queryRunner, Curriculum.MESTRADO, Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_MESTRADO)
+                await this.createAdvisees(advisees, professor, queryRunner, Curriculum.MESTRADO, Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_MESTRADO)
             }
 
             if (advisees?.[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_DOUTORADO]) {
-                await this.creatAdvisees(advisees, professor, queryRunner, Curriculum.DOUTORADO, Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_DOUTORADO)
+                await this.createAdvisees(advisees, professor, queryRunner, Curriculum.DOUTORADO, Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_DOUTORADO)
             }
 
             if (advisees?.[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_POS_DOUTORADO]) {
-                await this.creatAdvisees(advisees, professor, queryRunner, Curriculum.POS_DOUTORADO, Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_POS_DOUTORADO)
+                await this.createAdvisees(advisees, professor, queryRunner, Curriculum.POS_DOUTORADO, Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_POS_DOUTORADO)
             }
 
             if (advisees?.[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_MESTRADO]) {
-                await this.creatAdvisees(advisees, professor, queryRunner, Curriculum.MESTRADO, Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_INICIACAO_CIENTIFICA)
+                await this.createAdvisees(advisees, professor, queryRunner, Curriculum.MESTRADO, Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_INICIACAO_CIENTIFICA)
             }
 
         } catch (error) {
@@ -942,15 +962,15 @@ export class ImportJsonService {
       if (!concludedAdvisees) return;
       try {
         if (concludedAdvisees[Curriculum.ORIENTACOES_CONCLUIDAS_PARA_MESTRADO]) {
-          await this.creatAdvisees(concludedAdvisees, professor, queryRunner, Curriculum.MESTRADO, Curriculum.ORIENTACOES_CONCLUIDAS_PARA_MESTRADO);
+          await this.createAdvisees(concludedAdvisees, professor, queryRunner, Curriculum.MESTRADO, Curriculum.ORIENTACOES_CONCLUIDAS_PARA_MESTRADO);
         }
 
         if (concludedAdvisees[Curriculum.ORIENTACOES_CONCLUIDAS_PARA_DOUTORADO]) {
-          await this.creatAdvisees(concludedAdvisees, professor, queryRunner, Curriculum.DOUTORADO, Curriculum.ORIENTACOES_CONCLUIDAS_PARA_DOUTORADO);
+          await this.createAdvisees(concludedAdvisees, professor, queryRunner, Curriculum.DOUTORADO, Curriculum.ORIENTACOES_CONCLUIDAS_PARA_DOUTORADO);
         }
 
         if (concludedAdvisees[Curriculum.ORIENTACOES_CONCLUIDAS_PARA_POS_DOUTORADO]) {
-          await this.creatAdvisees(concludedAdvisees, professor, queryRunner, Curriculum.POS_DOUTORADO, Curriculum.ORIENTACOES_CONCLUIDAS_PARA_POS_DOUTORADO);
+          await this.createAdvisees(concludedAdvisees, professor, queryRunner, Curriculum.POS_DOUTORADO, Curriculum.ORIENTACOES_CONCLUIDAS_PARA_POS_DOUTORADO);
         }
 
         if (concludedAdvisees[Curriculum.OUTRAS_ORIENTACOES_CONCLUIDAS]) {
@@ -1113,8 +1133,8 @@ export class ImportJsonService {
                     await this.insertProjects(projects, professor, queryRunner);
 
                 }catch (err){
-                    await queryRunner.rollbackTransaction();
-                    await logErrorToDatabase(err, EntityType.XML, file);
+                  await queryRunner.rollbackTransaction();
+                  await logErrorToDatabase(err, EntityType.XML, file);
                 }
             }
         await queryRunner.commitTransaction();

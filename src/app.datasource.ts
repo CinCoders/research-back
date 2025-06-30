@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { config } from 'dotenv';
 import { ImportXml } from './import-xml/entities/import-xml.entity';
+import { ImportJson } from './import-json/entities/import-json.entity';
 import { Advisee } from './professor/entities/advisee.entity';
 import { ConferencePublication } from './professor/entities/conference-publication.entity';
 import { Financier } from './professor/entities/financier.entity';
@@ -46,6 +47,7 @@ export const AppDataSource = new DataSource({
   logging: false,
   entities: [
     ImportXml,
+    ImportJson,
     Advisee,
     ConferencePublication,
     Financier,
