@@ -93,7 +93,7 @@ export class ProfessorService {
     }
 
     const result = await query.getOne();
-    await queryRunner?.release();
+    // await queryRunner?.release();
 
     return result;
   }
