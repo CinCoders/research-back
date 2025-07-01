@@ -1,6 +1,6 @@
-import { Controller, Post, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { ImportJsonService } from './import-json.service';
-import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
+import { AuthenticatedUser, Public, Roles } from 'nest-keycloak-connect';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ApiOAuth2, ApiTags } from '@nestjs/swagger';
 import { SystemRoles } from 'src/types/enums';
@@ -8,7 +8,7 @@ import { extname } from 'path';
 import { Response } from 'express';
 
 @ApiTags('Import Json Module')
-@Roles({ roles: [SystemRoles.USERS] })
+// @Roles({ roles: [SystemRoles.USERS] })
 @Controller('import-json')
 @ApiOAuth2([])
 export class ImportJsonController {
@@ -36,6 +36,17 @@ export class ImportJsonController {
             return res.sendStatus(201);
           } catch (err) {
             return res.sendStatus(500);
+          }
+        }
+
+        @Get()
+        @Public()
+        async execute() {
+          try {
+            this.importJsonService.insertDataToDatabase()
+          } catch (err) {
+            console.log(err)
+            return err
           }
         }
 }
