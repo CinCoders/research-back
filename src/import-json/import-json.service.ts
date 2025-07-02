@@ -31,11 +31,12 @@ import { ConferenceService } from 'src/qualis/conference/conference.service';
 import { Conference } from 'src/qualis/entities/conference.entity';
 import { Journal } from 'src/qualis/entities/journal.entity';
 import { JournalService } from 'src/qualis/qualis.service';
-import { Status } from 'src/types/enums';
 import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
 import logErrorToDatabase from 'src/utils/exception-filters/log-error';
-import { Log } from 'src/utils/exception-filters/log.entity';
 import { QueryRunner } from 'typeorm';
+import { Log } from 'src/utils/exception-filters/log.entity';
+import { Status } from 'src/types/enums';
+import { ImportJson } from './entities/import-json.entity';
 
 
 @Injectable()
@@ -72,7 +73,7 @@ export class ImportJsonService {
       await unlink(zipPath); 
       file.path = newName; 
     }catch(err){
-      await logErrorToDatabase(err, EntityType.UNZIP)
+      await logErrorToDatabase(err, EntityType.UNZIP);
     }
   }
 
@@ -93,7 +94,7 @@ export class ImportJsonService {
     const professors = JSON.parse(raw);
 
     for (const professor of professors) {
-      const json = professor;
+      const json = professor.json;
       const id = json[Curriculum.NUMERO_IDENTIFICADOR];
       const filename = `${this.JSON_PATH}/${id}.json`;
       await fs.promises.writeFile(filename, JSON.stringify(json, null, 2));
@@ -102,12 +103,101 @@ export class ImportJsonService {
   }
 
   async deleteFiles() {
-      if (this.JSON_PATH) {
-          const files = await readdir(this.JSON_PATH);
-          for (const file of files) {
-              await unlink(this.JSON_PATH + '/' + file);
-          }
+    if (this.JSON_PATH) {
+        const files = await readdir(this.JSON_PATH);
+        for (const file of files) {
+            await unlink(this.JSON_PATH + '/' + file);
+        }
+    }
+  }
+
+  createImportLog(file: Express.Multer.File, username: string, professorName: string) {
+    const importJson = new Log();
+    importJson.entityType = EntityType.IMPORT;
+    importJson.executionContextHost = '';
+    importJson.message = `Original name: ${file.originalname}
+      File name: ${file.filename}
+      Username: ${username}
+      Professor name: ${professorName}
+      Result: `;
+
+    return importJson;
+  }
+
+  async updateJsonStatus(id: string, filename: string | undefined, status: string, professorName: string | undefined) {
+    let importJson: any = undefined;
+    switch (status) {
+      case Status.LOADING: {
+        importJson = { status: status, startedAt: new Date() };
+        break;
       }
+      case Status.PROGRESS: {
+        importJson = {
+          status: status,
+          professorName: professorName,
+          name: filename,
+        };
+        break;
+      }
+      case Status.CONCLUDED:
+      case Status.NOT_IMPORTED: {
+        importJson = { status: status, finishedAt: new Date() };
+        break;
+      }
+    }
+    await AppDataSource.createQueryBuilder().update(ImportJson).set(importJson).where('id=:name', { name: id }).execute();
+  }
+
+  generateFilePath = (identifier: string) => {
+    const cleanedIdentifier = identifier.replace('.zip', '').replace('.json', '');
+    const normalizedPath = this.path.normalize(`${this.JSON_PATH}/${cleanedIdentifier}.json`);
+    return normalizedPath;
+  };
+
+  renameFile = (oldPath: string, newPath: string) => {
+    return new Promise((resolve, reject) => {
+      fs.rename(oldPath, newPath, (err) => {
+        if (err) {
+          console.error('Error occurred during file renaming:', err);
+          reject(err);
+        } else {
+          resolve('File renamed successfully.');
+        }
+      });
+    });
+  };
+
+  async updateStoredXml(id: string): Promise<void> {
+    const Json: ImportJson | null = await this.findOne(id);
+    if (Json === null) throw Error('XML not found');
+    try {
+      // Set storedJson to false for all XMLs with the same name as the one with the provided id
+      await AppDataSource.createQueryBuilder()
+        .update(ImportJson)
+        .set({ storedJson: false })
+        .where('name=:JsonName AND storedJson = true', {
+          JsonName: Json.name,
+        })
+        .execute();
+
+      // Set storedJson to true for the specific XML with the provided id
+      await AppDataSource.createQueryBuilder()
+        .update(ImportJson)
+        .set({ storedJson: true })
+        .where('id=:JsonId', { JsonId: Json.id })
+        .execute();
+    } catch (error) {
+      console.error('Error updating storedJson:', error);
+      throw error;
+    }
+  }
+
+  async findOne(id: string) {
+    return AppDataSource.createQueryBuilder().select('i').from(ImportJson, 'i').where('i.id=:id', { id: id }).getOne();
+  }
+
+  async save(importXmlLog: Log) {
+    return await AppDataSource.createQueryBuilder().insert().into(Log).values(importXmlLog).execute();
   }
 
   getProfessorData(json: any) {
@@ -1130,20 +1220,20 @@ export class ImportJsonService {
   }
 
   async insertDataToDatabase() {
-    //const files = await fs.promises.readdir(this.JSON_PATH);
+    const files = await fs.promises.readdir(this.JSON_PATH);
     const queryRunner = AppDataSource.createQueryRunner();
       try{
           const journals = await this.journalService.findAll(queryRunner);
           const conferences = await this.conferenceService.findAll(queryRunner);
 
-          //for(const file of files){
+          for(const file of files){
             await queryRunner.startTransaction();
 
             try{
-              //const filePath = `${this.JSON_PATH}/${file}`;
-              //const raw = await fs.promises.readFile(filePath, 'utf-8');
-              const jsonRaw = (await import('../../professor.json')).default;
-
+              const filePath = `${this.JSON_PATH}/${file}`;
+              const raw = await fs.promises.readFile(filePath, 'utf-8');
+              const jsonRaw = JSON.parse(raw);
+              
               let professorDto: CreateProfessorDto | undefined = undefined;
               professorDto = this.getProfessorData(jsonRaw);
               const professor = await this.insertProfessor(professorDto, queryRunner);
@@ -1181,11 +1271,9 @@ export class ImportJsonService {
               console.error("ERRO AO INSERIR JSON: ", error)
               await queryRunner.rollbackTransaction();
           }
+        }
       }finally{
         await queryRunner.release();      
       }
-
-    
-   
   };
 }
