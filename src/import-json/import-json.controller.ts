@@ -1,9 +1,8 @@
-import { Controller, Get, Post, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { ImportJsonService } from './import-json.service';
-import { AuthenticatedUser, Public, Roles } from 'nest-keycloak-connect';
-import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { Public } from 'nest-keycloak-connect';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOAuth2, ApiTags } from '@nestjs/swagger';
-import { SystemRoles } from 'src/types/enums';
 import { extname } from 'path';
 import { Response } from 'express';
 
@@ -15,27 +14,30 @@ export class ImportJsonController {
     constructor (private readonly importJsonService: ImportJsonService) {}
 
     @Post()
+    @Public()
      @UseInterceptors(
-        AnyFilesInterceptor({
-          dest: 'downloadedFiles',
-          fileFilter: (req, file, callback) => {
-            if (extname(file.originalname) !== '.xml' && extname(file.originalname) !== '.zip') {
-              return callback(new Error('Only XML and Zip files are allowed.'), false);
-            }
-            callback(null, true);
-          },
-        }),
+       FileInterceptor('file', {
+      dest: 'downloadedFiles',
+      fileFilter: (req, file, callback) => {
+        if (extname(file.originalname) !== '.json' && extname(file.originalname) !== '.zip') {
+          return callback(new Error('Only JSON and Zip files are allowed.'), false);
+        }
+        callback(null, true);
+      },
+    }),
       )
+      
       async upload(
-          @AuthenticatedUser() user: any,
+          //@AuthenticatedUser() user: any,
           @Res() res: Response,
-          @UploadedFiles() file: Express.Multer.File,
+          @UploadedFile() file: Express.Multer.File,
         ) {
           try {
             await this.importJsonService.processImportJson(file);
-            return res.sendStatus(201);
+            return res.status(201).json({ message: 'Importação concluída com sucesso' });
           } catch (err) {
-            return res.sendStatus(500);
+             console.error('Erro ao importar JSON:', err);
+            return res.status(500).json({ error: 'Erro ao processar o arquivo' });
           }
         }
 
