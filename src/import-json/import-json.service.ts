@@ -37,6 +37,7 @@ import { QueryRunner } from 'typeorm';
 import { Log } from 'src/utils/exception-filters/log.entity';
 import { Status } from 'src/types/enums';
 import { ImportJson } from './entities/import-json.entity';
+import { json } from 'stream/consumers';
 
 
 @Injectable()
@@ -85,22 +86,44 @@ export class ImportJsonService {
       await this.splitJsonData(file.path);
       await this.insertDataToDatabase();
     } catch (err) {
+      console.error('Erro em splitJsonData:', err);
       await logErrorToDatabase(err, EntityType.IMPORT);
+      throw err; 
     }
   }
 
-  async splitJsonData(filePath: string){
-    const raw = await fs.promises.readFile(filePath, 'utf-8');
-    const professors = JSON.parse(raw);
+  async splitJsonData(filePath: string) {
+    try {
+      
+      if (!fs.existsSync(this.JSON_PATH)) {
+        fs.mkdirSync(this.JSON_PATH, { recursive: true });
+      }
 
-    for (const professor of professors) {
-      const json = professor.json;
-      const id = json[Curriculum.NUMERO_IDENTIFICADOR];
-      const filename = `${this.JSON_PATH}/${id}.json`;
-      await fs.promises.writeFile(filename, JSON.stringify(json, null, 2));
+      const raw = await fs.promises.readFile(filePath, 'utf-8');
+
+      let professors;
+      try {
+        professors = JSON.parse(raw);
+      } catch (e) {
+        console.error('Erro ao fazer parse do JSON:', e);
+        throw e;
+      }
+
+      for (const professor of professors) {
+        const json = professor.json;
+        const id = json[Curriculum.NUMERO_IDENTIFICADOR];
+        const filename = `${this.JSON_PATH}/${id}.json`;
+        await fs.promises.writeFile(filename, JSON.stringify(json, null, 2));
+      }
+
+      await unlink(filePath); 
+    } catch (err) {
+      console.error('Erro em splitJsonData:', err);
+      await logErrorToDatabase(err, EntityType.IMPORT);
+      throw err;
     }
-    unlink(filePath);
   }
+
 
   async deleteFiles() {
     if (this.JSON_PATH) {
@@ -898,7 +921,11 @@ export class ImportJsonService {
 
     if (!basicData || !details) return;
 
-    const yearStart = advisee[basicData][Curriculum.ANO];
+    console.log(professor.name, details, basicData);
+
+    
+    const yearStart = advisee[basicData][Curriculum.ANO] ?? null;
+
     const name = advisee[details][Curriculum.NOME_DO_ORIENTANDO];
     const type = advisee[details][Curriculum.TIPO_DE_ORIENTACAO];
     let scholarship = advisee[details][Curriculum.FLAG_BOLSA];
@@ -1220,60 +1247,66 @@ export class ImportJsonService {
   }
 
   async insertDataToDatabase() {
-    const files = await fs.promises.readdir(this.JSON_PATH);
-    const queryRunner = AppDataSource.createQueryRunner();
-      try{
-          const journals = await this.journalService.findAll(queryRunner);
-          const conferences = await this.conferenceService.findAll(queryRunner);
+  const files = await fs.promises.readdir(this.JSON_PATH);
+  const queryRunner = AppDataSource.createQueryRunner();
 
-          for(const file of files){
-            await queryRunner.startTransaction();
+  try {
+    const journals = await this.journalService.findAll(queryRunner);
+    const conferences = await this.conferenceService.findAll(queryRunner);
 
-            try{
-              const filePath = `${this.JSON_PATH}/${file}`;
-              const raw = await fs.promises.readFile(filePath, 'utf-8');
-              const jsonRaw = JSON.parse(raw);
-              
-              let professorDto: CreateProfessorDto | undefined = undefined;
-              professorDto = this.getProfessorData(jsonRaw);
-              const professor = await this.insertProfessor(professorDto, queryRunner);
+    for (const file of files) {
+      await queryRunner.startTransaction();
+      const filePath = `${this.JSON_PATH}/${file}`;
 
-              const articles = this.getArticlesFromJSON(jsonRaw);
-              await this.insertArticles(articles, professor, journals, queryRunner);
+      try {
+        const raw = await fs.promises.readFile(filePath, 'utf-8');
+        const jsonRaw = JSON.parse(raw);
 
-              const books = this.getBooksFromJSON(jsonRaw);
-              await this.insertBooks(books, professor, queryRunner);
+        let professorDto: CreateProfessorDto | undefined;
+        professorDto = this.getProfessorData(jsonRaw);
+        const professor = await this.insertProfessor(professorDto, queryRunner);
 
-              const translations = this.getTranslationsFromJSON(jsonRaw);
-              await this.insertTranslations(translations, professor, queryRunner);
+        const articles = this.getArticlesFromJSON(jsonRaw);
+        await this.insertArticles(articles, professor, journals, queryRunner);
 
-              const patents = this.getPatentsFromJSON(jsonRaw);
-              await this.insertPatents(patents, professor, queryRunner);
+        const books = this.getBooksFromJSON(jsonRaw);
+        await this.insertBooks(books, professor, queryRunner);
 
-              const artisticProductions = this.getArtisticProductionsFromJSON(jsonRaw);
-              await this.insertArtisticProductions(artisticProductions, professor, queryRunner);
+        const translations = this.getTranslationsFromJSON(jsonRaw);
+        await this.insertTranslations(translations, professor, queryRunner);
 
-              const conferencePublications = this.getConferencesFromJSON(jsonRaw);
-              await this.insertConferences(conferencePublications, professor, conferences, queryRunner);
+        const patents = this.getPatentsFromJSON(jsonRaw);
+        await this.insertPatents(patents, professor, queryRunner);
 
-              const advisees = this.getAdviseesFromJSON(jsonRaw);
-              await this.insertAdvisees(advisees, professor, queryRunner);
+        const artisticProductions = this.getArtisticProductionsFromJSON(jsonRaw);
+        await this.insertArtisticProductions(artisticProductions, professor, queryRunner);
 
-              const concludedAdvisees = this.getConcludedAdviseesFromJSON(jsonRaw);
-              await this.insertConcludedAdvisees(concludedAdvisees, professor, queryRunner);
+        const conferencePublications = this.getConferencesFromJSON(jsonRaw);
+        await this.insertConferences(conferencePublications, professor, conferences, queryRunner);
 
-              const projects = this.getProjectsFromJSON(jsonRaw);
-              await this.insertProjects(projects, professor, queryRunner);
-              console.log("ENDS") 
+        const advisees = this.getAdviseesFromJSON(jsonRaw);
+        await this.insertAdvisees(advisees, professor, queryRunner);
 
-              await queryRunner.commitTransaction();
-            }catch(error) {
-              console.error("ERRO AO INSERIR JSON: ", error)
-              await queryRunner.rollbackTransaction();
-          }
-        }
-      }finally{
-        await queryRunner.release();      
+        const concludedAdvisees = this.getConcludedAdviseesFromJSON(jsonRaw);
+        await this.insertConcludedAdvisees(concludedAdvisees, professor, queryRunner);
+
+        const projects = this.getProjectsFromJSON(jsonRaw);
+        await this.insertProjects(projects, professor, queryRunner);
+
+        console.log('Arquivo processado com sucesso:', file);
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        console.error('Erro ao inserir dados do arquivo:', file, error);
+        await queryRunner.rollbackTransaction();
+        await logErrorToDatabase(error, EntityType.IMPORT);
       }
-  };
+    }
+  } catch (err) {
+    console.error('Erro geral em insertDataToDatabase:', err);
+    await logErrorToDatabase(err, EntityType.IMPORT);
+  } finally {
+    await queryRunner.release();
+  }
+}
+
 }
