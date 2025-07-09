@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
+import { AuthenticatedUser, Public, Roles } from 'nest-keycloak-connect';
 import { ProfessorPatentDto } from 'src/patents/dto/professor-patent.dto';
 import { SystemRoles } from 'src/types/enums';
 import { AdviseeFormatDto } from './dto/advisee-format.dto';
@@ -22,6 +22,7 @@ import { ProfessorPublicationsDto } from './dto/professor-publications.dto';
 import { ProfessorTableDto } from './dto/professor-table.dto';
 import { Professor } from './entities/professor.entity';
 import { ProfessorService } from './professor.service';
+import { ExecutedActivitiesDto } from './dto/executed-activities.dto';
 
 @Roles({ roles: [SystemRoles.USERS] })
 @ApiTags('Professor Module')
@@ -115,6 +116,17 @@ export class ProfessorController {
   @Get('patents')
   getPatents(@Query() { id, lattes }: IdentifierQueryParamsDTO): Promise<ProfessorPatentDto[]> {
     return this.professorService.getPatents(id, lattes);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Returns activities the professor executed.',
+    isArray: false,
+    type: ExecutedActivitiesDto,
+  })
+  @Get('executed-activities')
+  getExecutedActivities(@Query() { lattes }: { lattes: string }): Promise<ExecutedActivitiesDto> {
+    return this.professorService.getExecutedActivities(lattes);
   }
 
   @ApiResponse({
