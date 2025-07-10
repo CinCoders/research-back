@@ -1,54 +1,76 @@
-import { Controller, Get, Post, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { ImportJsonService } from './import-json.service';
-import { Public } from 'nest-keycloak-connect';
+import { AuthenticatedUser, Public, Roles } from 'nest-keycloak-connect';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiOAuth2, ApiTags } from '@nestjs/swagger';
+import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { extname } from 'path';
 import { Response } from 'express';
+import { ImportJsonDto } from './dto/import-json.dto';
+import { Page } from 'src/types/page.dto';
+import { SystemRoles } from 'src/types/enums';
 
 @ApiTags('Import Json Module')
-// @Roles({ roles: [SystemRoles.USERS] })
+@Roles({ roles: [SystemRoles.USERS] })
 @Controller('import-json')
 @ApiOAuth2([])
 export class ImportJsonController {
-    constructor (private readonly importJsonService: ImportJsonService) {}
+  constructor (private readonly importJsonService: ImportJsonService) {}
 
-    @Post()
-    @Public()
-     @UseInterceptors(
-       FileInterceptor('file', {
-      dest: 'downloadedFiles',
-      fileFilter: (req, file, callback) => {
-        if (extname(file.originalname) !== '.json' && extname(file.originalname) !== '.zip') {
-          return callback(new Error('Only JSON and Zip files are allowed.'), false);
-        }
-        callback(null, true);
-      },
-    }),
-      )
-      
-      async upload(
-          //@AuthenticatedUser() user: any,
-          @Res() res: Response,
-          @UploadedFile() file: Express.Multer.File,
-        ) {
-          try {
-            await this.importJsonService.processImportJson(file);
-            return res.status(201).json({ message: 'Importação concluída com sucesso' });
-          } catch (err) {
-             console.error('Erro ao importar JSON:', err);
-            return res.status(500).json({ error: 'Erro ao processar o arquivo' });
-          }
-        }
+  @Post()
+    @UseInterceptors(
+      FileInterceptor('file', {
+    dest: 'downloadedFiles',
+    fileFilter: (req, file, callback) => {
+      if (extname(file.originalname) !== '.json' && extname(file.originalname) !== '.zip') {
+        return callback(new Error('Only JSON and Zip files are allowed.'), false);
+      }
+      callback(null, true);
+    },
+  }),
+  )
+  
+  async upload(
+      @AuthenticatedUser() user: any,
+      @Res() res: Response,
+      @UploadedFile() file: Express.Multer.File,
+    ) {
+      try {
+        const username = `${user.name} (${user.email})`;
+        await this.importJsonService.processImportJson(file, username);
+        return res.status(201).json({ message: 'Importação concluída com sucesso' });
+      } catch (err) {
+          console.error('Erro ao importar JSON:', err);
+        return res.status(500).json({ error: 'Erro ao processar o arquivo' });
+      }
+    }
 
-        @Get()
-        @Public()
-        async execute() {
-          try {
-            this.importJsonService.insertDataToDatabase()
-          } catch (err) {
-            console.log(err)
-            return err
-          }
-        }
+    @ApiResponse({
+      status: 200,
+      description: 'Returns list of imported jsons',
+      isArray: true,
+    })
+    @Get()
+    async findAllJsons(
+      @Res() res: Response,
+      @Query('limit') limit: number,
+      @Query('page') page: number,
+      @Query('offset') offset: number | undefined,
+    ): Promise<Response<Page<ImportJsonDto[]>>> {
+      const importedJsons = await this.importJsonService.findAllJsons({
+        limit: limit ?? 25,
+        page: page ?? 0,
+        offset: offset ?? (limit ?? 25) * (page ?? 0),
+      });
+      return res.status(200).send(importedJsons);
+    }
+
+    @ApiResponse({
+      status: 200,
+      description: 'Reprocesses the json with the given id',
+    })
+    @Get(':id/reprocess')
+    async reprocessJSON(@Res() res: Response, @Param('id') id: string) {
+      const importedXml = await this.importJsonService.reprocessJson(id);
+      return res.status(200).send(importedXml);
+    }
 }
