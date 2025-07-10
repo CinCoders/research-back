@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import extract from 'extract-zip';
 import * as fs from 'fs';
-import { readdir, readFile, rename, unlink } from 'fs/promises';
-import { extname } from 'path';
+import { readdir, readFile, rename, unlink, writeFile } from 'fs/promises';
+import { extname, resolve } from 'path';
 import { AppDataSource } from 'src/app.datasource';
 import { Curriculum } from './curriculum.enum';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
@@ -15,7 +15,6 @@ import { JournalPublicationDto } from 'src/professor/dto/journal-publication.dto
 import { PatentDto } from 'src/professor/dto/patent.dto';
 import { ProjectDto } from 'src/professor/dto/project.dto';
 import { TranslationDto } from 'src/professor/dto/translation.dto';
-import { Financier } from 'src/professor/entities/financier.entity';
 import { Professor } from 'src/professor/entities/professor.entity';
 import { ProfessorService } from 'src/professor/professor.service';
 import { AdviseeService } from 'src/professor/services/advisee/advisee.service';
@@ -37,14 +36,15 @@ import { QueryRunner } from 'typeorm';
 import { Log } from 'src/utils/exception-filters/log.entity';
 import { Status } from 'src/types/enums';
 import { ImportJson } from './entities/import-json.entity';
-import { json } from 'stream/consumers';
+import { PaginationDto } from 'src/types/pagination.dto';
+import { ImportJsonDto } from './dto/import-json.dto';
 
 
 @Injectable()
 export class ImportJsonService {
   path = require('path');
 
-  JSON_PATH = process.env.JSON_PATH ?? 'downloadedFiles';
+  JSON_PATH = process.env.JSON_PATH ?? 'downloadedFiles/json';
 
   constructor(
     private readonly journalService: JournalService,
@@ -61,69 +61,80 @@ export class ImportJsonService {
     private readonly artisticProductionService: ArtisticProductionService,
   ) {}
 
-  async unzipFile(file: Express.Multer.File){
-    try{
-      const zipPath = file.path;
-      await extract(zipPath, {
-          dir: this.JSON_PATH,
-        });
-      const extractedJsonPath = this.JSON_PATH + '/curriculo.json';
-      const newName = this.JSON_PATH + '/' + file.originalname.split('.')[0] + '.json';
-      await rename(extractedJsonPath, newName);
-
-      await unlink(zipPath); 
-      file.path = newName; 
-    }catch(err){
-      await logErrorToDatabase(err, EntityType.UNZIP);
-    }
-  }
-
-  async processImportJson(file: Express.Multer.File){
+  async unzipFile(file: Express.Multer.File) {
     try {
-      if (extname(file.originalname) === '.zip') {
-        await this.unzipFile(file);
+      const zipPath = file.path;
+      const absoluteJsonPath = resolve(this.JSON_PATH);
+
+      let extractedJsonPath: string | null = null;
+
+      await extract(zipPath, {
+        dir: absoluteJsonPath,   
+        onEntry: (entry) => {
+          if (entry.fileName.endsWith('.json')) {
+            extractedJsonPath = `${absoluteJsonPath}/${entry.fileName}`;
+          }
+        },
+      });
+
+      if (!extractedJsonPath) {
+        throw new Error('Nenhum arquivo .json encontrado no .zip');
       }
-      await this.splitJsonData(file.path);
-      await this.insertDataToDatabase();
+
+      const newName = `${absoluteJsonPath}/${file.originalname.split('.')[0]}.json`;
+      await rename(extractedJsonPath, newName);
+      await unlink(zipPath);
+      file.path = newName;
     } catch (err) {
-      console.error('Erro em splitJsonData:', err);
-      await logErrorToDatabase(err, EntityType.IMPORT);
-      throw err; 
+      await logErrorToDatabase(err, EntityType.UNZIP);
+      throw err;
     }
   }
 
-  async splitJsonData(filePath: string) {
+
+  async splitJsonData(filePath: string, username: string) {
+    const queryRunner = AppDataSource.createQueryRunner();
     try {
       
       if (!fs.existsSync(this.JSON_PATH)) {
         fs.mkdirSync(this.JSON_PATH, { recursive: true });
       }
 
-      const raw = await fs.promises.readFile(filePath, 'utf-8');
+      const raw = await readFile(filePath, 'utf-8');
 
-      let professors;
-      try {
-        professors = JSON.parse(raw);
-      } catch (e) {
-        console.error('Erro ao fazer parse do JSON:', e);
-        throw e;
-      }
+      let professors = JSON.parse(raw);
 
       for (const professor of professors) {
         const json = professor.json;
         const id = json[Curriculum.NUMERO_IDENTIFICADOR];
-        const filename = `${this.JSON_PATH}/${id}.json`;
-        await fs.promises.writeFile(filename, JSON.stringify(json, null, 2));
+        const fileJsonPath = `${this.JSON_PATH}/${id}.json`;
+        const filename = `${id}.json`;
+
+        await queryRunner.startTransaction();
+        const importJson = new ImportJson();
+        importJson.id = filename;
+        importJson.name = filename;
+        importJson.user = username;
+        importJson.status = Status.PENDING;
+        importJson.startedAt = undefined;
+        importJson.finishedAt = undefined;
+        importJson.storedJson = true;
+
+        await AppDataSource.getRepository(ImportJson).save(importJson);
+
+        await queryRunner.commitTransaction();
+
+        await writeFile(fileJsonPath, JSON.stringify(json, null, 2));
       }
 
       await unlink(filePath); 
     } catch (err) {
-      console.error('Erro em splitJsonData:', err);
-      await logErrorToDatabase(err, EntityType.IMPORT);
+      await queryRunner.rollbackTransaction();
       throw err;
+    } finally {
+      await queryRunner.release();
     }
   }
-
 
   async deleteFiles() {
     if (this.JSON_PATH) {
@@ -134,12 +145,59 @@ export class ImportJsonService {
     }
   }
 
-  createImportLog(file: Express.Multer.File, username: string, professorName: string) {
+  async findAllJsons(paginationDto: PaginationDto){
+    const totalCount = await AppDataSource.createQueryBuilder().select().from(ImportJson, 'i').getCount();
+
+    const importedJsonEntity = await AppDataSource.createQueryBuilder()
+      .select('i')
+      .from(ImportJson, 'i')
+      .orderBy('included_at', 'DESC')
+      .offset(paginationDto.offset)
+      .limit(paginationDto.limit)
+      .getMany();
+
+    const importedJsonDto: ImportJsonDto[] = [];
+    for (const json of importedJsonEntity) {
+      let importTime: number | undefined = undefined;
+      if (json.startedAt) {
+        if (json.finishedAt) {
+          importTime = (json.finishedAt.valueOf() - json.startedAt.valueOf()) / 1000;
+        } else {
+          importTime = (new Date().valueOf() - json.startedAt.valueOf()) / 1000;
+        }
+      }
+
+      const xmlDto: ImportJsonDto = {
+        id: json.id,
+        name: json.name,
+        professor: json.professorName,
+        user: json.user,
+        status: json.status,
+        storedXml: json.storedJson,
+        includedAt: json.includedAt,
+        importTime: importTime,
+      };
+      importedJsonDto.push(xmlDto);
+    }
+
+    return {
+      totalElements: totalCount,
+      totalPages: Math.ceil(totalCount / paginationDto.limit),
+      currentPage: paginationDto.page + 1,
+      pageSize: paginationDto.limit,
+      offset: paginationDto.offset,
+      data: importedJsonDto,
+    };
+  }
+
+
+  createImportLog(file: string, username: string, professorName: string) {
     const importJson = new Log();
     importJson.entityType = EntityType.IMPORT;
     importJson.executionContextHost = '';
-    importJson.message = `Original name: ${file.originalname}
-      File name: ${file.filename}
+
+    importJson.message = `Original name: ${file}
+      File name: ${file}
       Username: ${username}
       Professor name: ${professorName}
       Result: `;
@@ -148,53 +206,29 @@ export class ImportJsonService {
   }
 
   async updateJsonStatus(id: string, filename: string | undefined, status: string, professorName: string | undefined) {
-    let importJson: any = undefined;
+    let importJson: Partial<ImportJson> = {status, professorName, name: filename};
     switch (status) {
       case Status.LOADING: {
-        importJson = { status: status, startedAt: new Date() };
+        importJson.startedAt = new Date();
         break;
       }
       case Status.PROGRESS: {
-        importJson = {
-          status: status,
-          professorName: professorName,
-          name: filename,
-        };
         break;
-      }
+      }  
       case Status.CONCLUDED:
       case Status.NOT_IMPORTED: {
-        importJson = { status: status, finishedAt: new Date() };
+        importJson.finishedAt = new Date();
         break;
       }
     }
     await AppDataSource.createQueryBuilder().update(ImportJson).set(importJson).where('id=:name', { name: id }).execute();
   }
 
-  generateFilePath = (identifier: string) => {
-    const cleanedIdentifier = identifier.replace('.zip', '').replace('.json', '');
-    const normalizedPath = this.path.normalize(`${this.JSON_PATH}/${cleanedIdentifier}.json`);
-    return normalizedPath;
-  };
-
-  renameFile = (oldPath: string, newPath: string) => {
-    return new Promise((resolve, reject) => {
-      fs.rename(oldPath, newPath, (err) => {
-        if (err) {
-          console.error('Error occurred during file renaming:', err);
-          reject(err);
-        } else {
-          resolve('File renamed successfully.');
-        }
-      });
-    });
-  };
-
-  async updateStoredXml(id: string): Promise<void> {
+  async updateStoredJson(id: string): Promise<void> {
     const Json: ImportJson | null = await this.findOne(id);
-    if (Json === null) throw Error('XML not found');
+    if (Json === null) throw Error('Json not found');
     try {
-      // Set storedJson to false for all XMLs with the same name as the one with the provided id
+      // Set storedJson to false for all JSONs with the same name as the one with the provided id
       await AppDataSource.createQueryBuilder()
         .update(ImportJson)
         .set({ storedJson: false })
@@ -203,7 +237,7 @@ export class ImportJsonService {
         })
         .execute();
 
-      // Set storedJson to true for the specific XML with the provided id
+      // Set storedJson to true for the specific JSON with the provided id
       await AppDataSource.createQueryBuilder()
         .update(ImportJson)
         .set({ storedJson: true })
@@ -219,8 +253,8 @@ export class ImportJsonService {
     return AppDataSource.createQueryBuilder().select('i').from(ImportJson, 'i').where('i.id=:id', { id: id }).getOne();
   }
 
-  async save(importXmlLog: Log) {
-    return await AppDataSource.createQueryBuilder().insert().into(Log).values(importXmlLog).execute();
+  async save(importJsonLog: Log) {
+    return await AppDataSource.createQueryBuilder().insert().into(Log).values(importJsonLog).execute();
   }
 
   getProfessorData(json: any) {
@@ -340,14 +374,14 @@ export class ImportJsonService {
       let article = await this.journalPublicationService.findOne(articleDto, queryRunner);
 
       try {
-        if (!article) article = await this.journalPublicationService.createJournalPublication(articleDto, queryRunner);
+        article ??= await this.journalPublicationService.createJournalPublication(articleDto, queryRunner);
 
-        await this.journalPublicationService.getQualisAndJournal(article!, journals, queryRunner);
+        await this.journalPublicationService.getQualisAndJournal(article, journals, queryRunner);
       } catch (error: any) {
         if (article) {
           await logErrorToDatabase(error, EntityType.JOURNAL_PUBLICATION, article.id.toString());
         } else {
-          await logErrorToDatabase(error, EntityType.JOURNAL_PUBLICATION, undefined);
+          await logErrorToDatabase(error, EntityType.JOURNAL_PUBLICATION);
         }
         throw error;
       }
@@ -355,10 +389,7 @@ export class ImportJsonService {
   }
 
   getBooksFromJSON(json: any) {
-    if (
-      json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.LIVROS_E_CAPITULOS] &&
-      json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.LIVROS_E_CAPITULOS][Curriculum.LIVROS_PUBLICADOS_OU_ORGANIZADOS]
-    ) {
+    if (json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.LIVROS_E_CAPITULOS]?.[Curriculum.LIVROS_PUBLICADOS_OU_ORGANIZADOS]) {
       return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.LIVROS_E_CAPITULOS][
         Curriculum.LIVROS_PUBLICADOS_OU_ORGANIZADOS
       ][Curriculum.LIVRO_PUBLICADO_OU_ORGANIZADO];
@@ -458,12 +489,12 @@ export class ImportJsonService {
       let book = await this.bookService.findOne(bookDto, queryRunner);
 
       try {
-        if (!book) book = await this.bookService.createBook(bookDto, queryRunner);
+        book ??= await this.bookService.createBook(bookDto, queryRunner);
       } catch (error: any) {
         if (book) {
           await logErrorToDatabase(error, EntityType.BOOK, book.id.toString());
         } else {
-          await logErrorToDatabase(error, EntityType.BOOK, undefined);
+          await logErrorToDatabase(error, EntityType.BOOK);
         }
         throw error;
       }
@@ -471,17 +502,8 @@ export class ImportJsonService {
   }
 
   getTranslationsFromJSON(json: any) {
-    if (
-      json[Curriculum.PRODUCAO_BIBLIOGRAFICA][
-        Curriculum.DEMAIS_TIPOS_DE_PRODUCAO_BIBLIOGRAFICA
-      ] &&
-      json[Curriculum.PRODUCAO_BIBLIOGRAFICA][
-        Curriculum.DEMAIS_TIPOS_DE_PRODUCAO_BIBLIOGRAFICA
-      ][Curriculum.TRADUCAO]
-    ) {
-      return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][
-        Curriculum.DEMAIS_TIPOS_DE_PRODUCAO_BIBLIOGRAFICA
-      ][Curriculum.TRADUCAO];
+    if (json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.DEMAIS_TIPOS_DE_PRODUCAO_BIBLIOGRAFICA]?.[Curriculum.TRADUCAO]) {
+      return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.DEMAIS_TIPOS_DE_PRODUCAO_BIBLIOGRAFICA][Curriculum.TRADUCAO];
     }
   }
 
@@ -564,12 +586,12 @@ export class ImportJsonService {
       let translation = await this.translationService.findOne(translationDto, queryRunner);
 
       try {
-        if (!translation) translation = await this.translationService.createTranslation(translationDto, queryRunner);
+        translation ??= await this.translationService.createTranslation(translationDto, queryRunner);
       } catch (error: any) {
         if (translation) {
           await logErrorToDatabase(error, EntityType.TRANSLATION, translation.id.toString());
         } else {
-          await logErrorToDatabase(error, EntityType.BOOK, undefined);
+          await logErrorToDatabase(error, EntityType.BOOK);
         }
         throw error;
       }
@@ -577,10 +599,7 @@ export class ImportJsonService {
   }
 
   getPatentsFromJSON(json: any) {
-    if (
-        json[Curriculum.PRODUCAO_TECNICA] &&
-        json[Curriculum.PRODUCAO_TECNICA][Curriculum.PATENTE]
-    ) {
+    if (json[Curriculum.PRODUCAO_TECNICA]?.[Curriculum.PATENTE]) {
         return json[Curriculum.PRODUCAO_TECNICA][Curriculum.PATENTE];
     }
   }
@@ -656,12 +675,12 @@ export class ImportJsonService {
       let patent = await this.patentService.findOne(patentDto, queryRunner);
 
       try {
-        if (!patent) patent = await this.patentService.createPatent(patentDto, queryRunner);
+        patent ??= await this.patentService.createPatent(patentDto, queryRunner);
       } catch (error: any) {
         if (patent) {
           await logErrorToDatabase(error, EntityType.PATENT, patent.id.toString());
         } else {
-          await logErrorToDatabase(error, EntityType.PATENT, undefined);
+          await logErrorToDatabase(error, EntityType.PATENT);
         }
         throw error;
       }
@@ -669,11 +688,8 @@ export class ImportJsonService {
   } 
 
   getArtisticProductionsFromJSON(json: any) {
-    if (
-        json[Curriculum.OUTRA_PRODUCAO] &&
-        json[Curriculum.OUTRA_PRODUCAO][Curriculum.PRODUCAO_ARTISTICA_CULTURAL]
-    ) {
-        return json[Curriculum.OUTRA_PRODUCAO][Curriculum.PRODUCAO_ARTISTICA_CULTURAL][0][Curriculum.ARTES_VISUAIS];
+    if (json[Curriculum.OUTRA_PRODUCAO]?.[Curriculum.PRODUCAO_ARTISTICA_CULTURAL]) {
+      return json[Curriculum.OUTRA_PRODUCAO][Curriculum.PRODUCAO_ARTISTICA_CULTURAL][0][Curriculum.ARTES_VISUAIS];
     }
   }
 
@@ -749,23 +765,18 @@ export class ImportJsonService {
   async insertArtisticProductions(artisticProductions: any, professor: Professor, queryRunner: QueryRunner) {
     if (!artisticProductions) return;
     for (let i = 0; artisticProductions[i] !== undefined; i++) {
+      
       const artisticProductionData = artisticProductions[i];
-
       const artisticProductionDto = this.getArtisticProductionData(artisticProductionData, professor);
-
       let artisticProduction = await this.artisticProductionService.findOne(artisticProductionDto, queryRunner);
 
       try {
-        if (!artisticProduction)
-          artisticProduction = await this.artisticProductionService.createArtisticProduction(
-            artisticProductionDto,
-            queryRunner,
-          );
+        artisticProduction ??= await this.artisticProductionService.createArtisticProduction(artisticProductionDto, queryRunner,);
       } catch (error: any) {
         if (artisticProduction) {
           await logErrorToDatabase(error, EntityType.ARTISTIC_PRODUCTION, artisticProduction.id.toString());
         } else {
-          await logErrorToDatabase(error, EntityType.ARTISTIC_PRODUCTION, undefined);
+          await logErrorToDatabase(error, EntityType.ARTISTIC_PRODUCTION);
         }
         throw error;
       }
@@ -884,13 +895,11 @@ export class ImportJsonService {
           conferenceDto.doi.length - Math.min(conferenceDto.doi?.length, 50),
         );
         let conference = await this.conferencePublicationsService.getConference(conferenceDto, queryRunner);
-        if (!conference)
-          conference = await this.conferencePublicationsService.createConference(conferenceDto, queryRunner);
-
+        conference ??= await this.conferencePublicationsService.createConference(conferenceDto, queryRunner);
         this.conferencePublicationsService.getConferenceAndQualis(conference, conferences, queryRunner);
       }
     } catch (error) {
-      await logErrorToDatabase(error, EntityType.CONFERENCE, undefined);
+      await logErrorToDatabase(error, EntityType.CONFERENCE);
       throw error;
     }
   }
@@ -920,9 +929,6 @@ export class ImportJsonService {
     }
 
     if (!basicData || !details) return;
-
-    console.log(professor.name, details, basicData);
-
     
     const yearStart = advisee[basicData][Curriculum.ANO] ?? null;
 
@@ -955,7 +961,7 @@ export class ImportJsonService {
   async insertAdvisees(advisees: any, professor: Professor, queryRunner: QueryRunner) {
     if (!advisees) return;
     try {
-      if (advisees && advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_MESTRADO]) {
+      if (advisees?.[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_MESTRADO]) {
         for (let i = 0; advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_MESTRADO][i] !== undefined; i++) {
           const adviseeData = advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_MESTRADO][i];
           const adviseeDto = this.getAdviseeData(adviseeData, professor, Curriculum.MESTRADO);
@@ -967,18 +973,17 @@ export class ImportJsonService {
         }
       }
 
-      if (advisees && advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_DOUTORADO]) {
+      if (advisees?.[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_DOUTORADO]) {
         for (let i = 0; advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_DOUTORADO][i] !== undefined; i++) {
           const adviseeData = advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_DOUTORADO][i];
           const adviseeDto = this.getAdviseeData(adviseeData, professor, Curriculum.DOUTORADO);
           if (adviseeDto) {
             let advisee = await this.adviseeService.getAdvisee(adviseeDto, queryRunner);
-            if (!advisee)
-              advisee = await this.adviseeService.createAdvisee(adviseeDto, Curriculum.DOUTORADO, queryRunner);
+            if (!advisee) await this.adviseeService.createAdvisee(adviseeDto, Curriculum.DOUTORADO, queryRunner);
           }
         }
       }
-      if (advisees && advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_POS_DOUTORADO]) {
+      if (advisees?.[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_POS_DOUTORADO]) {
         for (let i = 0; advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_POS_DOUTORADO][i] !== undefined; i++) {
           const adviseeData = advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_POS_DOUTORADO][i];
           const adviseeDto = this.getAdviseeData(adviseeData, professor, Curriculum.POS_DOUTORADO);
@@ -989,7 +994,7 @@ export class ImportJsonService {
           }
         }
       }
-      if (advisees && advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_INICIACAO_CIENTIFICA]) {
+      if (advisees?.[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_INICIACAO_CIENTIFICA]) {
         for (let i = 0; advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_INICIACAO_CIENTIFICA][i] !== undefined; i++) {
           const adviseeData = advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_INICIACAO_CIENTIFICA][i];
           const adviseeDto = this.getAdviseeData(adviseeData, professor, Curriculum.INICIACAO_CIENTIFICA);
@@ -1005,7 +1010,7 @@ export class ImportJsonService {
         }
       }
     } catch (error) {
-      await logErrorToDatabase(error, EntityType.ADVISEE, undefined);
+      await logErrorToDatabase(error, EntityType.ADVISEE);
       throw error;
     }
   }
@@ -1126,7 +1131,7 @@ export class ImportJsonService {
         }
       }
     } catch (error) {
-      await logErrorToDatabase(error, EntityType.CONCLUDED_ADVISEE, undefined);
+      await logErrorToDatabase(error, EntityType.CONCLUDED_ADVISEE);
       throw error;
     }
   }
@@ -1141,16 +1146,6 @@ export class ImportJsonService {
       nature,
     };
     return financierDto;
-  }
-
-  async insertFinancier(financiersDto: FinancierDto[], queryRunner: QueryRunner) {
-    const financiersList: Financier[] = [];
-    for (let i = 0; i < financiersDto.length; i++) {
-      const financierDto = financiersDto[i];
-      let financier = await this.financierService.getFinancier(financierDto, queryRunner);
-      if (!financier) financier = await this.financierService.createFinancier(financierDto, queryRunner);
-      return financiersList.push(financier);
-    }
   }
 
   getProjectsFromJSON(json: any) {
@@ -1184,13 +1179,11 @@ export class ImportJsonService {
 
   getProjectData(researchProject: any, professor: Professor) {
     if (
-      researchProject[Curriculum.PROJETO_DE_PESQUISA] &&
-      researchProject[Curriculum.PROJETO_DE_PESQUISA][0][Curriculum.ANO_INICIO] &&
+      researchProject[Curriculum.PROJETO_DE_PESQUISA]?.[0]?.[Curriculum.ANO_INICIO] &&
       researchProject[Curriculum.PROJETO_DE_PESQUISA][0][Curriculum.ANO_INICIO] !== ''
     ) {
       const yearStart = researchProject[Curriculum.PROJETO_DE_PESQUISA][0][Curriculum.ANO_INICIO];
       const name = researchProject[Curriculum.PROJETO_DE_PESQUISA][0][Curriculum.NOME_DO_PROJETO];
-
       const periodFlag = researchProject[Curriculum.FLAG_PERIODO];
 
       const projectDto: ProjectDto = {
@@ -1241,31 +1234,31 @@ export class ImportJsonService {
           }
         }
     } catch (error) {
-      await logErrorToDatabase(error, EntityType.PROJECT, undefined);
+      await logErrorToDatabase(error, EntityType.PROJECT);
       throw error;
     }
   }
 
-  async insertDataToDatabase() {
-  const files = await fs.promises.readdir(this.JSON_PATH);
-  const queryRunner = AppDataSource.createQueryRunner();
+  async processJson(file: string, username: string, journals: Journal[], conferences: Conference[], queryRunner: QueryRunner){
+    await queryRunner.startTransaction();
 
-  try {
-    const journals = await this.journalService.findAll(queryRunner);
-    const conferences = await this.conferenceService.findAll(queryRunner);
-
-    for (const file of files) {
-      await queryRunner.startTransaction();
-      const filePath = `${this.JSON_PATH}/${file}`;
+    try{
+      this.updateJsonStatus(file, undefined, Status.LOADING, undefined);
+      let importJsonLog = this.createImportLog(file, username, 'undefined');
+      let professorDto: CreateProfessorDto | undefined;
 
       try {
-        const raw = await fs.promises.readFile(filePath, 'utf-8');
+        const filePath = `${this.JSON_PATH}/${file}`;
+        const raw = await readFile(filePath, 'utf-8');
         const jsonRaw = JSON.parse(raw);
-
-        let professorDto: CreateProfessorDto | undefined;
+        
         professorDto = this.getProfessorData(jsonRaw);
+      
+        this.updateJsonStatus(file, file, Status.PROGRESS, professorDto.name);
+        
         const professor = await this.insertProfessor(professorDto, queryRunner);
-
+        importJsonLog = this.createImportLog(file, username, professor.name);
+        
         const articles = this.getArticlesFromJSON(jsonRaw);
         await this.insertArticles(articles, professor, journals, queryRunner);
 
@@ -1293,20 +1286,89 @@ export class ImportJsonService {
         const projects = this.getProjectsFromJSON(jsonRaw);
         await this.insertProjects(projects, professor, queryRunner);
 
-        console.log('Arquivo processado com sucesso:', file);
-        await queryRunner.commitTransaction();
-      } catch (error) {
-        console.error('Erro ao inserir dados do arquivo:', file, error);
-        await queryRunner.rollbackTransaction();
-        await logErrorToDatabase(error, EntityType.IMPORT);
+        importJsonLog.message += 'SUCCESS';
+        this.updateJsonStatus(file, file, Status.CONCLUDED, professorDto.name);
+      }catch(err){
+        importJsonLog.message += 'FAILED';
+        this.updateJsonStatus(file, undefined, Status.NOT_IMPORTED, professorDto?.name);
+        throw err;
+      }finally{
+        this.updateStoredJson(file);
+        await this.save(importJsonLog);
       }
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      await logErrorToDatabase(err, EntityType.IMPORT, file);
     }
-  } catch (err) {
-    console.error('Erro geral em insertDataToDatabase:', err);
-    await logErrorToDatabase(err, EntityType.IMPORT);
-  } finally {
-    await queryRunner.release();
   }
-}
 
+  async reprocessJson(id: string) {
+    const importedJson = await this.findOne(id);
+    const queryRunner = AppDataSource.createQueryRunner();
+
+    if (!importedJson) throw new Error('Json not found');
+
+    const journals = await this.journalService.findAll(queryRunner);
+    const conferences = await this.conferenceService.findAll(queryRunner);
+
+    try {
+      await queryRunner.startTransaction();
+
+      const importJson = new ImportJson();
+      importJson.id = id;
+      importJson.name = id;
+      importJson.user = importedJson.user;
+      importJson.status = Status.PENDING;
+      importJson.startedAt = undefined;
+      importJson.finishedAt = undefined;
+      importJson.storedJson = true;
+
+      await AppDataSource.getRepository(ImportJson).save(importJson);
+      
+      await queryRunner.commitTransaction();
+
+      await this.processJson(id, importedJson.name, journals, conferences, queryRunner);
+
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      console.error('Erro ao processar json:', err);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+
+    return importedJson;
+  }
+
+  
+  async insertDataToDatabase(username: string) {
+    const files = await readdir(this.JSON_PATH);
+    const queryRunner = AppDataSource.createQueryRunner();
+
+    try {
+      const journals = await this.journalService.findAll(queryRunner);
+      const conferences = await this.conferenceService.findAll(queryRunner);
+
+      for (const file of files) {
+        await this.processJson(file, username, journals, conferences, queryRunner);
+      }
+    }  finally {
+      await queryRunner.release();
+    }
+  }
+
+  async processImportJson(file: Express.Multer.File, username: string) {
+    try {
+      if (extname(file.originalname) === '.zip') {
+        await this.unzipFile(file);
+      }
+
+      await this.splitJsonData(file.path, username);
+      this.insertDataToDatabase(username);
+    } catch (err) {
+      await logErrorToDatabase(err, EntityType.IMPORT);
+      throw err; 
+    }
+  }
 }
