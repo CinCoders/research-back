@@ -28,7 +28,7 @@ export enum Curriculum {
   AREA_DO_CONHECIMENTO_1 = 'areadoconhecimento1', 
   AREA_DO_CONHECIMENTO_2 = 'areadoconhecimento2',
   NOME_GRANDE_AREA_DO_CONHECIMENTO = 'nomegrandeareadoconhecimento',
-  NOME_DA_AREA_DO_CONHECIMENTO = 'nomedareadoconhecimento',
+  NOME_DA_AREA_DO_CONHECIMENTO = 'nomedaareadoconhecimento',
   NOME_DA_SUB_AREA_DO_CONHECIMENTO = 'nomedasubareadoconhecimento',
   NOME_DA_ESPECIALIDADE = 'nomedaespecialidade',
   NOME_PRODUCAO = 'nomeproducao',
