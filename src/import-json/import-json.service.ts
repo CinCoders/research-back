@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import extract from 'extract-zip';
 import * as fs from 'fs';
 import { readdir, readFile, rename, unlink, writeFile } from 'fs/promises';
-import { extname, resolve } from 'path';
+import { resolve } from 'path';
 import { AppDataSource } from 'src/app.datasource';
 import { Curriculum } from './curriculum.enum';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
@@ -94,6 +94,7 @@ export class ImportJsonService {
 
   async splitJsonData(filePath: string, username: string) {
     const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.startTransaction();
     try {
       
       if (!fs.existsSync(this.JSON_PATH)) {
@@ -101,8 +102,10 @@ export class ImportJsonService {
       }
 
       const raw = await readFile(filePath, 'utf-8');
-
       let professors = JSON.parse(raw);
+      if (!Array.isArray(professors)) {
+        throw new HttpException('O arquivo JSON deve conter um array.', HttpStatus.NOT_ACCEPTABLE);
+      }
 
       for (const professor of professors) {
         const json = professor.json;
@@ -110,25 +113,26 @@ export class ImportJsonService {
         const fileJsonPath = `${this.JSON_PATH}/${id}.json`;
         const filename = `${id}.json`;
 
-        await queryRunner.startTransaction();
         const importJson = new ImportJson();
         importJson.id = filename;
         importJson.name = filename;
         importJson.user = username;
         importJson.status = Status.PENDING;
-        importJson.startedAt = undefined;
-        importJson.finishedAt = undefined;
+        importJson.startedAt = null;
+        importJson.finishedAt = null;
         importJson.storedJson = true;
 
-        await AppDataSource.getRepository(ImportJson).save(importJson);
+        await AppDataSource.manager.save(importJson);
 
-        await queryRunner.commitTransaction();
 
         await writeFile(fileJsonPath, JSON.stringify(json, null, 2));
       }
 
-      await unlink(filePath); 
+      await unlink(filePath);       
+      await queryRunner.commitTransaction();
+
     } catch (err) {
+
       await queryRunner.rollbackTransaction();
       throw err;
     } finally {
@@ -1359,16 +1363,7 @@ export class ImportJsonService {
   }
 
   async processImportJson(file: Express.Multer.File, username: string) {
-    try {
-      if (extname(file.originalname) === '.zip') {
-        await this.unzipFile(file);
-      }
-
       await this.splitJsonData(file.path, username);
       this.insertDataToDatabase(username);
-    } catch (err) {
-      await logErrorToDatabase(err, EntityType.IMPORT);
-      throw err; 
-    }
   }
 }
