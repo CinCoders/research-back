@@ -1,6 +1,6 @@
-import { Controller, Get, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { ImportJsonService } from './import-json.service';
-import { AuthenticatedUser, Public, Roles } from 'nest-keycloak-connect';
+import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { extname } from 'path';
@@ -21,28 +21,21 @@ export class ImportJsonController {
       FileInterceptor('file', {
     dest: 'downloadedFiles',
     fileFilter: (req, file, callback) => {
-      if (extname(file.originalname) !== '.json' && extname(file.originalname) !== '.zip') {
-        return callback(new Error('Only JSON and Zip files are allowed.'), false);
+      if (extname(file.originalname) !== '.json') {
+        return callback(new Error('Only JSON files are allowed.'), false);
       }
       callback(null, true);
     },
   }),
   )
-  
+  @HttpCode(HttpStatus.CREATED)
   async upload(
       @AuthenticatedUser() user: any,
-      @Res() res: Response,
       @UploadedFile() file: Express.Multer.File,
     ) {
-      try {
-        const username = `${user.name} (${user.email})`;
+          const username = `${user.name} (${user.email})`;
         await this.importJsonService.processImportJson(file, username);
-        return res.status(201).json({ message: 'Importação concluída com sucesso' });
-      } catch (err) {
-          console.error('Erro ao importar JSON:', err);
-        return res.status(500).json({ error: 'Erro ao processar o arquivo' });
-      }
-    }
+        return { message: 'Importação concluída com sucesso' };    }
 
     @ApiResponse({
       status: 200,
