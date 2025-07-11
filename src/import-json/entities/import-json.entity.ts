@@ -1,5 +1,5 @@
 import { ApiProperty, ApiTags } from '@nestjs/swagger';
-import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
 @ApiTags('Json Imports')
 @Entity({ name: 'json_imports' })
@@ -29,14 +29,14 @@ export class ImportJson {
   storedJson!: boolean;
 
   @ApiProperty()
-  @CreateDateColumn({ name: 'included_at', type: 'timestamptz' })
+  @UpdateDateColumn({ name: 'included_at', type: 'timestamptz' })
   includedAt!: Date;
 
   @ApiProperty()
   @Column({ name: 'started_at', nullable: true, type: 'timestamptz' })
-  startedAt?: Date;
+  startedAt?: Date | null;
 
   @ApiProperty()
   @Column({ name: 'finished_at', nullable: true, type: 'timestamptz' })
-  finishedAt?: Date;
+  finishedAt?: Date | null;
 }
