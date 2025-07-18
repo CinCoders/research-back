@@ -1,8 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import extract from 'extract-zip';
 import * as fs from 'fs';
-import { readdir, readFile, rename, unlink, writeFile } from 'fs/promises';
-import { resolve } from 'path';
+import { readdir, readFile, unlink, writeFile } from 'fs/promises';
 import { AppDataSource } from 'src/app.datasource';
 import { Curriculum } from './curriculum.enum';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
@@ -39,12 +37,11 @@ import { ImportJson } from './entities/import-json.entity';
 import { PaginationDto } from 'src/types/pagination.dto';
 import { ImportJsonDto } from './dto/import-json.dto';
 
-
 @Injectable()
 export class ImportJsonService {
   path = require('path');
 
-  JSON_PATH = process.env.JSON_PATH ?? 'downloadedFiles/json';
+  JSON_PATH = process.env.JSON_PATH ?? 'downloadedFiles';
 
   constructor(
     private readonly journalService: JournalService,
@@ -61,53 +58,24 @@ export class ImportJsonService {
     private readonly artisticProductionService: ArtisticProductionService,
   ) {}
 
-  async unzipFile(file: Express.Multer.File) {
-    try {
-      const zipPath = file.path;
-      const absoluteJsonPath = resolve(this.JSON_PATH);
-
-      let extractedJsonPath: string | null = null;
-
-      await extract(zipPath, {
-        dir: absoluteJsonPath,   
-        onEntry: (entry) => {
-          if (entry.fileName.endsWith('.json')) {
-            extractedJsonPath = `${absoluteJsonPath}/${entry.fileName}`;
-          }
-        },
-      });
-
-      if (!extractedJsonPath) {
-        throw new Error('Nenhum arquivo .json encontrado no .zip');
-      }
-
-      const newName = `${absoluteJsonPath}/${file.originalname.split('.')[0]}.json`;
-      await rename(extractedJsonPath, newName);
-      await unlink(zipPath);
-      file.path = newName;
-    } catch (err) {
-      await logErrorToDatabase(err, EntityType.UNZIP);
-      throw err;
-    }
-  }
-
-
   async splitJsonData(filePath: string, username: string) {
-    const queryRunner = AppDataSource.createQueryRunner();
-    await queryRunner.startTransaction();
-    try {
-      
-      if (!fs.existsSync(this.JSON_PATH)) {
-        fs.mkdirSync(this.JSON_PATH, { recursive: true });
-      }
+    if (!fs.existsSync(this.JSON_PATH)) {
+      fs.mkdirSync(this.JSON_PATH, { recursive: true });
+    }
 
-      const raw = await readFile(filePath, 'utf-8');
-      let professors = JSON.parse(raw);
-      if (!Array.isArray(professors)) {
-        throw new HttpException('O arquivo JSON deve conter um array.', HttpStatus.NOT_ACCEPTABLE);
-      }
+    const raw = await readFile(filePath, 'utf-8');
+    const professors = JSON.parse(raw);
+    const files: string[] = [];
 
-      for (const professor of professors) {
+    if (!Array.isArray(professors)) {
+      throw new HttpException('O arquivo JSON deve conter um array.', HttpStatus.NOT_ACCEPTABLE);
+    }
+
+    for (const professor of professors) {
+      const queryRunner = AppDataSource.createQueryRunner();
+      await queryRunner.startTransaction();
+
+      try {
         const json = professor.json;
         const id = json[Curriculum.NUMERO_IDENTIFICADOR];
         const fileJsonPath = `${this.JSON_PATH}/${id}.json`;
@@ -122,34 +90,32 @@ export class ImportJsonService {
         importJson.finishedAt = null;
         importJson.storedJson = true;
 
-        await AppDataSource.manager.save(importJson);
-
-
+        await queryRunner.manager.save(importJson);
         await writeFile(fileJsonPath, JSON.stringify(json, null, 2));
+        files.push(filename);
+
+        await queryRunner.commitTransaction();
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      } finally {
+        await queryRunner.release();
       }
-
-      await unlink(filePath);       
-      await queryRunner.commitTransaction();
-
-    } catch (err) {
-
-      await queryRunner.rollbackTransaction();
-      throw err;
-    } finally {
-      await queryRunner.release();
     }
+    await unlink(filePath);
+    return files;
   }
 
   async deleteFiles() {
     if (this.JSON_PATH) {
-        const files = await readdir(this.JSON_PATH);
-        for (const file of files) {
-            await unlink(this.JSON_PATH + '/' + file);
-        }
+      const files = await readdir(this.JSON_PATH);
+      for (const file of files) {
+        await unlink(this.JSON_PATH + '/' + file);
+      }
     }
   }
 
-  async findAllJsons(paginationDto: PaginationDto){
+  async findAllJsons(paginationDto: PaginationDto) {
     const totalCount = await AppDataSource.createQueryBuilder().select().from(ImportJson, 'i').getCount();
 
     const importedJsonEntity = await AppDataSource.createQueryBuilder()
@@ -171,17 +137,12 @@ export class ImportJsonService {
         }
       }
 
-      const xmlDto: ImportJsonDto = {
-        id: json.id,
-        name: json.name,
+      const jsonDto: ImportJsonDto = {
+        ...json,
         professor: json.professorName,
-        user: json.user,
-        status: json.status,
-        storedXml: json.storedJson,
-        includedAt: json.includedAt,
-        importTime: importTime,
+        importTime,
       };
-      importedJsonDto.push(xmlDto);
+      importedJsonDto.push(jsonDto);
     }
 
     return {
@@ -193,7 +154,6 @@ export class ImportJsonService {
       data: importedJsonDto,
     };
   }
-
 
   createImportLog(file: string, username: string, professorName: string) {
     const importJson = new Log();
@@ -210,7 +170,7 @@ export class ImportJsonService {
   }
 
   async updateJsonStatus(id: string, filename: string | undefined, status: string, professorName: string | undefined) {
-    let importJson: Partial<ImportJson> = {status, professorName, name: filename};
+    const importJson: Partial<ImportJson> = { status, professorName, name: filename };
     switch (status) {
       case Status.LOADING: {
         importJson.startedAt = new Date();
@@ -218,14 +178,18 @@ export class ImportJsonService {
       }
       case Status.PROGRESS: {
         break;
-      }  
+      }
       case Status.CONCLUDED:
       case Status.NOT_IMPORTED: {
         importJson.finishedAt = new Date();
         break;
       }
     }
-    await AppDataSource.createQueryBuilder().update(ImportJson).set(importJson).where('id=:name', { name: id }).execute();
+    await AppDataSource.createQueryBuilder()
+      .update(ImportJson)
+      .set(importJson)
+      .where('id=:name', { name: id })
+      .execute();
   }
 
   async updateStoredJson(id: string): Promise<void> {
@@ -281,93 +245,91 @@ export class ImportJsonService {
     return professor;
   }
 
+  getAuthors(authors: any[]) {
+    const result = authors.reduce((acc, author) => {
+      const quoteName = author[Curriculum.NOME_PARA_CITACAO];
+      return acc + `${quoteName}; `;
+    }, '');
+
+    return result.slice(0, -2);
+  }
 
   getArticlesFromJSON(json: any) {
     if (json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.ARTIGOS_PUBLICADOS]) {
-        return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.ARTIGOS_PUBLICADOS][Curriculum.ARTIGO_PUBLICADO];
+      return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.ARTIGOS_PUBLICADOS][Curriculum.ARTIGO_PUBLICADO];
     }
   }
 
   getArticleData(article: any, professor: Professor) {
-      const bigArea =
-        article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
-          Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
-        ] ?? undefined;
-  
-      const area =
-        article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
-          Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
-        ] ?? undefined;
-  
-      const subArea =
-        article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
-          Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
-        ] ?? undefined;
-  
-      const speciality =
-        article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
-          Curriculum.NOME_DA_ESPECIALIDADE
-        ] ?? undefined;
-  
-      const bigArea2 =
-        article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
-          Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
-        ] ?? undefined;
-  
-      const area2 =
-        article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
-          Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
-        ] ?? undefined;
-  
-      const subArea2 =
-        article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
-          Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
-        ] ?? undefined;
-  
-      const speciality2 =
-        article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
-          Curriculum.NOME_DA_ESPECIALIDADE
-        ] ?? undefined;
-  
-      const title = article[Curriculum.DADOS_BASICOS_DO_ARTIGO][Curriculum.NOME_PRODUCAO];
-      const doi = article[Curriculum.DADOS_BASICOS_DO_ARTIGO][Curriculum.DOI];
-      const year = article[Curriculum.DADOS_BASICOS_DO_ARTIGO][Curriculum.ANO_PRODUCAO];
-      const issn = article[Curriculum.DETALHAMENTO_DO_ARTIGO][Curriculum.ISSN];
-  
-      const journalTitle =
-        article[Curriculum.DETALHAMENTO_DO_ARTIGO][Curriculum.TITULO_DO_PERIODICO_OU_REVISTA];
-  
-      const curriculumAuthors = article[Curriculum.AUTORES] ?? undefined;
-      let authors = '';
-  
-      for (let i = 0; curriculumAuthors !== undefined && i < curriculumAuthors.length; i++) {
-        const quoteName = curriculumAuthors[i][Curriculum.NOME_PARA_CITACAO];
-        if (i === curriculumAuthors.length - 1) {
-          authors += `${quoteName}`;
-        } else {
-          authors += `${quoteName}; `;
-        }
-      }
-  
-      const articleDto: JournalPublicationDto = {
-        professor,
-        title,
-        doi,
-        year,
-        issn,
-        journalTitle,
-        authors: authors || undefined,
-        bigArea,
-        area,
-        subArea,
-        speciality,
-        bigArea2,
-        area2,
-        subArea2,
-        speciality2,
-      };
-  
-      return articleDto;
+    const bigArea =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
+
+    const area =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
+
+    const subArea =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
+
+    const speciality =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_DA_ESPECIALIDADE
+      ] ?? undefined;
+
+    const bigArea2 =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
+
+    const area2 =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
+        Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
+
+    const subArea2 =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
+
+    const speciality2 =
+      article[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
+        Curriculum.NOME_DA_ESPECIALIDADE
+      ] ?? undefined;
+
+    const title = article[Curriculum.DADOS_BASICOS_DO_ARTIGO][Curriculum.NOME_PRODUCAO];
+    const doi = article[Curriculum.DADOS_BASICOS_DO_ARTIGO][Curriculum.DOI];
+    const year = article[Curriculum.DADOS_BASICOS_DO_ARTIGO][Curriculum.ANO_PRODUCAO];
+    const issn = article[Curriculum.DETALHAMENTO_DO_ARTIGO][Curriculum.ISSN];
+
+    const journalTitle = article[Curriculum.DETALHAMENTO_DO_ARTIGO][Curriculum.TITULO_DO_PERIODICO_OU_REVISTA];
+
+    const curriculumAuthors = article[Curriculum.AUTORES] ?? undefined;
+    const authors = this.getAuthors(curriculumAuthors);
+
+    const articleDto: JournalPublicationDto = {
+      professor,
+      title,
+      doi,
+      year,
+      issn,
+      journalTitle,
+      authors: authors || undefined,
+      bigArea,
+      area,
+      subArea,
+      speciality,
+      bigArea2,
+      area2,
+      subArea2,
+      speciality2,
+    };
+
+    return articleDto;
   }
 
   async insertArticles(articles: any, professor: Professor, journals: Journal[], queryRunner: QueryRunner) {
@@ -393,7 +355,11 @@ export class ImportJsonService {
   }
 
   getBooksFromJSON(json: any) {
-    if (json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.LIVROS_E_CAPITULOS]?.[Curriculum.LIVROS_PUBLICADOS_OU_ORGANIZADOS]) {
+    if (
+      json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.LIVROS_E_CAPITULOS]?.[
+        Curriculum.LIVROS_PUBLICADOS_OU_ORGANIZADOS
+      ]
+    ) {
       return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.LIVROS_E_CAPITULOS][
         Curriculum.LIVROS_PUBLICADOS_OU_ORGANIZADOS
       ][Curriculum.LIVRO_PUBLICADO_OU_ORGANIZADO];
@@ -405,7 +371,7 @@ export class ImportJsonService {
       book[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
         Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
       ] ?? undefined;
-    
+
     const area =
       book[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
         Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
@@ -417,9 +383,8 @@ export class ImportJsonService {
       ] ?? undefined;
 
     const speciality =
-      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
-        Curriculum.NOME_DA_ESPECIALIDADE
-      ] ?? undefined;
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[Curriculum.NOME_DA_ESPECIALIDADE] ??
+      undefined;
 
     const bigArea2 =
       book[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
@@ -437,32 +402,19 @@ export class ImportJsonService {
       ] ?? undefined;
 
     const speciality2 =
-      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[
-        Curriculum.NOME_DA_ESPECIALIDADE
-      ] ?? undefined;
+      book[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_2]?.[Curriculum.NOME_DA_ESPECIALIDADE] ??
+      undefined;
 
-    const title =
-      book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[Curriculum.NOME_PRODUCAO] ?? undefined;
+    const title = book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[Curriculum.NOME_PRODUCAO] ?? undefined;
 
-    const language =
-      book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[Curriculum.IDIOMA] ?? undefined;
+    const language = book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[Curriculum.IDIOMA] ?? undefined;
 
     const year = book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[Curriculum.ANO_PRODUCAO] ?? undefined;
 
-    const publicationCountry =
-      book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[Curriculum.PAIS_DE_PUBLICACAO] ?? undefined;
+    const publicationCountry = book[Curriculum.DADOS_BASICOS_DO_LIVRO]?.[Curriculum.PAIS_DE_PUBLICACAO] ?? undefined;
 
     const bookAuthors = book[Curriculum.AUTORES] ?? undefined;
-    let authors = '';
-
-    for (let i = 0; bookAuthors !== undefined && i < bookAuthors.length; i++) {
-      const quoteName = bookAuthors[i][Curriculum.NOME_PARA_CITACAO];
-      if (i === bookAuthors.length - 1) {
-        authors += `${quoteName}`;
-      } else {
-        authors += `${quoteName}; `;
-      }
-    }
+    const authors = this.getAuthors(bookAuthors);
 
     const bookDto: BookDto = {
       professor,
@@ -506,31 +458,42 @@ export class ImportJsonService {
   }
 
   getTranslationsFromJSON(json: any) {
-    if (json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.DEMAIS_TIPOS_DE_PRODUCAO_BIBLIOGRAFICA]?.[Curriculum.TRADUCAO]) {
-      return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.DEMAIS_TIPOS_DE_PRODUCAO_BIBLIOGRAFICA][Curriculum.TRADUCAO];
+    if (
+      json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.DEMAIS_TIPOS_DE_PRODUCAO_BIBLIOGRAFICA]?.[Curriculum.TRADUCAO]
+    ) {
+      return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.DEMAIS_TIPOS_DE_PRODUCAO_BIBLIOGRAFICA][
+        Curriculum.TRADUCAO
+      ];
     }
   }
 
   getTranslationData(translation: any, professor: Professor) {
     const bigArea =
-      translation[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO] ?? undefined;
+      translation[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
 
     const area =
-      translation[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[Curriculum.NOME_DA_AREA_DO_CONHECIMENTO] ?? undefined;
+      translation[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
 
     const subArea =
-      translation[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO] ?? undefined;
+      translation[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
 
     const speciality =
-      translation[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[Curriculum.NOME_DA_ESPECIALIDADE] ?? undefined;
+      translation[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_DA_ESPECIALIDADE
+      ] ?? undefined;
 
     const title = translation[Curriculum.DADOS_BASICOS_DA_TRADUCAO]?.[Curriculum.NOME_PRODUCAO] ?? undefined;
 
     const originalTitle =
       translation[Curriculum.DETALHAMENTO_DA_TRADUCAO]?.[Curriculum.TITULO_DA_OBRA_ORIGINAL] ?? undefined;
 
-    const language =
-      translation[Curriculum.DADOS_BASICOS_DA_TRADUCAO]?.[Curriculum.IDIOMA] ?? undefined;
+    const language = translation[Curriculum.DADOS_BASICOS_DA_TRADUCAO]?.[Curriculum.IDIOMA] ?? undefined;
 
     const originalLanguage =
       translation[Curriculum.DETALHAMENTO_DA_TRADUCAO]?.[Curriculum.IDIOMA_DA_OBRA_ORIGINAL] ?? undefined;
@@ -549,16 +512,7 @@ export class ImportJsonService {
     const issn = translation[Curriculum.DETALHAMENTO_DA_TRADUCAO]?.[Curriculum.ISSN_ISBN] ?? undefined;
 
     const translationAuthors = translation[Curriculum.AUTORES] ?? undefined;
-    let authors = '';
-
-    for (let i = 0; translationAuthors !== undefined && i < translationAuthors.length; i++) {
-      const quoteName = translationAuthors[i][Curriculum.NOME_PARA_CITACAO];
-      if (i === translationAuthors.length - 1) {
-        authors += `${quoteName}`;
-      } else {
-        authors += `${quoteName}; `;
-      }
-    }
+    const authors = this.getAuthors(translationAuthors);
 
     const translationDto: TranslationDto = {
       professor,
@@ -604,31 +558,27 @@ export class ImportJsonService {
 
   getPatentsFromJSON(json: any) {
     if (json[Curriculum.PRODUCAO_TECNICA]?.[Curriculum.PATENTE]) {
-        return json[Curriculum.PRODUCAO_TECNICA][Curriculum.PATENTE];
+      return json[Curriculum.PRODUCAO_TECNICA][Curriculum.PATENTE];
     }
   }
 
   getPatentData(patent: any, professor: Professor) {
-    const title =
-      patent[Curriculum.DADOS_BASICOS_DA_PATENTE]?.[Curriculum.NOME_PRODUCAO_PATENTE] ?? undefined;
+    const title = patent[Curriculum.DADOS_BASICOS_DA_PATENTE]?.[Curriculum.NOME_PRODUCAO_PATENTE] ?? undefined;
 
-    const developmentYear =
-      patent[Curriculum.DADOS_BASICOS_DA_PATENTE]?.[Curriculum.ANO_PRODUCAO] ??
-      undefined;
+    const developmentYear = patent[Curriculum.DADOS_BASICOS_DA_PATENTE]?.[Curriculum.ANO_PRODUCAO] ?? undefined;
 
-    const country =
-      patent[Curriculum.DADOS_BASICOS_DA_PATENTE]?.[Curriculum.PAIS] ?? undefined;
+    const country = patent[Curriculum.DADOS_BASICOS_DA_PATENTE]?.[Curriculum.PAIS] ?? undefined;
 
     const situationStatus =
-      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[Curriculum.HISTORICO_SITUACOES_PATENTE]?.[Curriculum.DESCRICAO_SITUACAO_PATENTE] ?? 'MISSING';
+      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[Curriculum.HISTORICO_SITUACOES_PATENTE]?.[
+        Curriculum.DESCRICAO_SITUACAO_PATENTE
+      ] ?? 'MISSING';
 
-    const category =
-      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[Curriculum.CATEGORIA] ?? undefined;
+    const category = patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[Curriculum.CATEGORIA] ?? undefined;
 
     const patentType =
-      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[Curriculum.REGISTRO_OU_PATENTE]?.[0][
-        Curriculum.TIPO_PATENTE
-      ] ?? undefined;
+      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[Curriculum.REGISTRO_OU_PATENTE]?.[0][Curriculum.TIPO_PATENTE] ??
+      undefined;
     const registryCode =
       patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[Curriculum.REGISTRO_OU_PATENTE]?.[0][
         Curriculum.CODIGO_DO_REGISTRO_OU_PATENTE
@@ -638,20 +588,11 @@ export class ImportJsonService {
         Curriculum.INSTITUICAO_DEPOSITO_REGISTRO
       ] ?? undefined;
     const depositantName =
-      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[Curriculum.REGISTRO_OU_PATENTE]?.[
-        Curriculum.NOME_DO_TITULAR
-      ] ?? undefined;
+      patent[Curriculum.DETALHAMENTO_DA_PATENTE]?.[Curriculum.REGISTRO_OU_PATENTE]?.[Curriculum.NOME_DO_TITULAR] ??
+      undefined;
 
     const patentAuthors = patent[Curriculum.AUTORES] ?? undefined;
-    let authors = '';
-    for (let i = 0; patentAuthors !== undefined && i < patentAuthors.length; i++) {
-      const quoteName = patentAuthors[i][Curriculum.NOME_PARA_CITACAO];
-      if (i === patentAuthors.length - 1) {
-        authors += `${quoteName}`;
-      } else {
-        authors += `${quoteName}; `;
-      }
-    }
+    const authors = this.getAuthors(patentAuthors);
 
     const patentDto: PatentDto = {
       professor,
@@ -689,7 +630,7 @@ export class ImportJsonService {
         throw error;
       }
     }
-  } 
+  }
 
   getArtisticProductionsFromJSON(json: any) {
     if (json[Curriculum.OUTRA_PRODUCAO]?.[Curriculum.PRODUCAO_ARTISTICA_CULTURAL]) {
@@ -699,54 +640,43 @@ export class ImportJsonService {
 
   getArtisticProductionData(artisticProduction: any, professor: Professor) {
     const title =
-      artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[Curriculum.NOME_PRODUCAO] ??
-      undefined;
+      artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[Curriculum.NOME_PRODUCAO] ?? undefined;
 
-    const year =
-      artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[Curriculum.ANO_PRODUCAO] ??
-      undefined;
+    const year = artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[Curriculum.ANO_PRODUCAO] ?? undefined;
 
-    const country =
-      artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[Curriculum.PAIS] ??
-      undefined;
+    const country = artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[Curriculum.PAIS] ?? undefined;
 
-    const language =
-      artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[Curriculum.IDIOMA] ??
-      undefined;
+    const language = artisticProduction[Curriculum.DADOS_BASICOS_DE_ARTES_VISUAIS]?.[Curriculum.IDIOMA] ?? undefined;
 
     const authorActivity =
-      artisticProduction[Curriculum.DETALHAMENTO_DE_ARTES_VISUAIS]?.[
-        Curriculum.ATIVIDADE_DOS_AUTORES
-      ] ?? undefined;
+      artisticProduction[Curriculum.DETALHAMENTO_DE_ARTES_VISUAIS]?.[Curriculum.ATIVIDADE_DOS_AUTORES] ?? undefined;
 
     const promotingInstitution =
-      artisticProduction[Curriculum.DETALHAMENTO_DE_ARTES_VISUAIS]?.[
-        Curriculum.INSTITUICAO_PROMOTORA_DO_EVENTO
-      ] ?? undefined;
+      artisticProduction[Curriculum.DETALHAMENTO_DE_ARTES_VISUAIS]?.[Curriculum.INSTITUICAO_PROMOTORA_DO_EVENTO] ??
+      undefined;
 
     const bigArea =
-      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO] ?? undefined;
+      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_GRANDE_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
 
     const area =
-      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_1]?.[Curriculum.NOME_DA_AREA_DO_CONHECIMENTO] ?? undefined;
+      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_DA_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
 
     const subArea =
-      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_1]?.[Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO] ?? undefined;
+      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_DA_SUB_AREA_DO_CONHECIMENTO
+      ] ?? undefined;
 
     const speciality =
-      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_1]?.[Curriculum.NOME_DA_ESPECIALIDADE] ?? undefined;
+      artisticProduction[Curriculum.AREAS_DO_CONHECIMENTO]?.[0][Curriculum.AREA_DO_CONHECIMENTO_1]?.[
+        Curriculum.NOME_DA_ESPECIALIDADE
+      ] ?? undefined;
 
     const artisticProductionAuthors = artisticProduction[Curriculum.AUTORES] ?? undefined;
-    let authors = '';
-
-    for (let i = 0; artisticProductionAuthors !== undefined && i < artisticProductionAuthors.length; i++) {
-      const quoteName = artisticProductionAuthors[i][Curriculum.NOME_PARA_CITACAO];
-      if (i === artisticProductionAuthors.length - 1) {
-        authors += `${quoteName}`;
-      } else {
-        authors += `${quoteName}; `;
-      }
-    }
+    const authors = this.getAuthors(artisticProductionAuthors);
 
     const artisticProductionDto: ArtisticProductionDto = {
       professor,
@@ -769,13 +699,15 @@ export class ImportJsonService {
   async insertArtisticProductions(artisticProductions: any, professor: Professor, queryRunner: QueryRunner) {
     if (!artisticProductions) return;
     for (let i = 0; artisticProductions[i] !== undefined; i++) {
-      
       const artisticProductionData = artisticProductions[i];
       const artisticProductionDto = this.getArtisticProductionData(artisticProductionData, professor);
       let artisticProduction = await this.artisticProductionService.findOne(artisticProductionDto, queryRunner);
 
       try {
-        artisticProduction ??= await this.artisticProductionService.createArtisticProduction(artisticProductionDto, queryRunner,);
+        artisticProduction ??= await this.artisticProductionService.createArtisticProduction(
+          artisticProductionDto,
+          queryRunner,
+        );
       } catch (error: any) {
         if (artisticProduction) {
           await logErrorToDatabase(error, EntityType.ARTISTIC_PRODUCTION, artisticProduction.id.toString());
@@ -789,9 +721,7 @@ export class ImportJsonService {
 
   getConferencesFromJSON(json: any) {
     if (json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.TRABALHOS_EM_EVENTOS]) {
-        return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.TRABALHOS_EM_EVENTOS][
-        Curriculum.TRABALHO_EM_EVENTOS
-        ];
+      return json[Curriculum.PRODUCAO_BIBLIOGRAFICA][Curriculum.TRABALHOS_EM_EVENTOS][Curriculum.TRABALHO_EM_EVENTOS];
     }
   }
 
@@ -836,31 +766,18 @@ export class ImportJsonService {
         Curriculum.NOME_DA_ESPECIALIDADE
       ] ?? undefined;
 
-    const title =
-      conference[Curriculum.DADOS_BASICOS_DO_TRABALHO][Curriculum.NOME_PRODUCAO];
+    const title = conference[Curriculum.DADOS_BASICOS_DO_TRABALHO][Curriculum.NOME_PRODUCAO];
     const year = conference[Curriculum.DADOS_BASICOS_DO_TRABALHO][Curriculum.ANO_PRODUCAO];
 
     const nature = conference[Curriculum.DADOS_BASICOS_DO_TRABALHO][Curriculum.NATUREZA];
 
     const event = conference[Curriculum.DETALHAMENTO_DO_TRABALHO][Curriculum.NOME_DO_EVENTO];
-    const proceedings =
-      conference[Curriculum.DETALHAMENTO_DO_TRABALHO][
-        Curriculum.TITULO_DOS_ANAIS_OU_PROCEEDINGS
-      ];
+    const proceedings = conference[Curriculum.DETALHAMENTO_DO_TRABALHO][Curriculum.TITULO_DOS_ANAIS_OU_PROCEEDINGS];
 
     const doi = conference[Curriculum.DADOS_BASICOS_DO_TRABALHO][Curriculum.DOI];
 
     const curriculumAuthors = conference[Curriculum.AUTORES] ?? undefined;
-    let authors = '';
-
-    for (let i = 0; curriculumAuthors !== undefined && i < curriculumAuthors.length; i++) {
-      const quoteName = curriculumAuthors[i][Curriculum.NOME_PARA_CITACAO];
-      if (i === curriculumAuthors.length - 1) {
-        authors += `${quoteName}`;
-      } else {
-        authors += `${quoteName}; `;
-      }
-    }
+    const authors = this.getAuthors(curriculumAuthors);
 
     const conferenceDto: ConferenceDto = {
       professor,
@@ -910,9 +827,7 @@ export class ImportJsonService {
 
   getAdviseesFromJSON(json: any) {
     if (json[Curriculum.DADOS_COMPLEMENTARES][Curriculum.ORIENTACOES_EM_ANDAMENTO])
-        return json[Curriculum.DADOS_COMPLEMENTARES][
-        Curriculum.ORIENTACOES_EM_ANDAMENTO
-        ];
+      return json[Curriculum.DADOS_COMPLEMENTARES][Curriculum.ORIENTACOES_EM_ANDAMENTO];
   }
 
   getAdviseeData(advisee: any, professor: Professor, degree: string) {
@@ -933,20 +848,16 @@ export class ImportJsonService {
     }
 
     if (!basicData || !details) return;
-    
+
     const yearStart = advisee[basicData][Curriculum.ANO] ?? null;
 
     const name = advisee[details][Curriculum.NOME_DO_ORIENTANDO];
     const type = advisee[details][Curriculum.TIPO_DE_ORIENTACAO];
-    let scholarship = advisee[details][Curriculum.FLAG_BOLSA];
+    const scholarship = advisee[details][Curriculum.FLAG_BOLSA] === 'SIM';
     const financierCode = advisee[details][Curriculum.CODIGO_AGENCIA_FINANCIADORA];
     const institution = advisee[details][Curriculum.NOME_INSTITUICAO];
     const title = advisee[basicData][Curriculum.TITULO_DO_TRABALHO];
     const course = advisee[details][Curriculum.NOME_CURSO];
-
-    if (scholarship === 'SIM') {
-      scholarship = true;
-    } else scholarship = false;
 
     const adviseeDto: AdviseeDto = {
       professor,
@@ -982,7 +893,7 @@ export class ImportJsonService {
           const adviseeData = advisees[Curriculum.ORIENTACAO_EM_ANDAMENTO_DE_DOUTORADO][i];
           const adviseeDto = this.getAdviseeData(adviseeData, professor, Curriculum.DOUTORADO);
           if (adviseeDto) {
-            let advisee = await this.adviseeService.getAdvisee(adviseeDto, queryRunner);
+            const advisee = await this.adviseeService.getAdvisee(adviseeDto, queryRunner);
             if (!advisee) await this.adviseeService.createAdvisee(adviseeDto, Curriculum.DOUTORADO, queryRunner);
           }
         }
@@ -1021,7 +932,7 @@ export class ImportJsonService {
 
   getConcludedAdviseesFromJSON(json: any) {
     if (json[Curriculum.OUTRA_PRODUCAO][Curriculum.ORIENTACOES_CONCLUIDAS]) {
-        return json[Curriculum.OUTRA_PRODUCAO][Curriculum.ORIENTACOES_CONCLUIDAS];
+      return json[Curriculum.OUTRA_PRODUCAO][Curriculum.ORIENTACOES_CONCLUIDAS];
     }
   }
 
@@ -1050,16 +961,11 @@ export class ImportJsonService {
     if (degree === Curriculum.INICIACAO_CIENTIFICA) {
       type = concludedAdvisee[details][Curriculum.TIPO_DE_ORIENTACAO_CONCLUIDA];
     }
-    let scholarship = concludedAdvisee[details][Curriculum.FLAG_BOLSA];
+    const scholarship = concludedAdvisee[details][Curriculum.FLAG_BOLSA] === 'SIM';
     const financierCode = concludedAdvisee[details][Curriculum.CODIGO_AGENCIA_FINANCIADORA];
-    const institution =
-      concludedAdvisee[details][Curriculum.NOME_INSTITUICAO_ORIENTACOES_CONCLUIDAS];
+    const institution = concludedAdvisee[details][Curriculum.NOME_INSTITUICAO_ORIENTACOES_CONCLUIDAS];
     const title = concludedAdvisee[basicData][Curriculum.TITULO];
     const course = concludedAdvisee[details][Curriculum.NOME_CURSO_ORIENTACOES_CONCLUIDAS];
-
-    if (scholarship === 'SIM') {
-      scholarship = true;
-    } else scholarship = false;
 
     const adviseeDto: AdviseeDto = {
       professor,
@@ -1153,32 +1059,32 @@ export class ImportJsonService {
   }
 
   getProjectsFromJSON(json: any) {
-      if (json[Curriculum.DADOS_GERAIS][Curriculum.ATUACOES_PROFISSIONAIS]) {
-          return json[Curriculum.DADOS_GERAIS][Curriculum.ATUACOES_PROFISSIONAIS][Curriculum.ATUACAO_PROFISSIONAL];
-      }
+    if (json[Curriculum.DADOS_GERAIS][Curriculum.ATUACOES_PROFISSIONAIS]) {
+      return json[Curriculum.DADOS_GERAIS][Curriculum.ATUACOES_PROFISSIONAIS][Curriculum.ATUACAO_PROFISSIONAL];
+    }
   }
 
   getResearchProjects(project: any) {
-      return project[Curriculum.ATIVIDADES_DE_PARTICIPACAO_EM_PROJETO][Curriculum.PARTICIPACAO_EM_PROJETO];
+    return project[Curriculum.ATIVIDADES_DE_PARTICIPACAO_EM_PROJETO][Curriculum.PARTICIPACAO_EM_PROJETO];
   }
 
   getResearchProjectFinancier(researchProject: any) {
-      if (researchProject[Curriculum.PROJETO_DE_PESQUISA])
-            return researchProject[Curriculum.PROJETO_DE_PESQUISA][Curriculum.FINANCIADORES_DO_PROJETO];
+    if (researchProject[Curriculum.PROJETO_DE_PESQUISA])
+      return researchProject[Curriculum.PROJETO_DE_PESQUISA][Curriculum.FINANCIADORES_DO_PROJETO];
   }
 
   getFinancierFromJSON(json: any) {
-      if (json) {
-        const financiersDto: FinancierDto[] = [];
-        for (let i = 0; json[Curriculum.FINANCIADOR_DO_PROJETO][i] !== undefined; i++) {
-          const financierJson = json[Curriculum.FINANCIADOR_DO_PROJETO][i];
-          const name = financierJson[Curriculum.NOME_INSTITUICAO];
-          const code = financierJson[Curriculum.CODIGO_INSTITUICAO];
-          const nature = financierJson[Curriculum.NATUREZA];
-          financiersDto.push({ name, code, nature });
-        }
-        return financiersDto;
+    if (json) {
+      const financiersDto: FinancierDto[] = [];
+      for (let i = 0; json[Curriculum.FINANCIADOR_DO_PROJETO][i] !== undefined; i++) {
+        const financierJson = json[Curriculum.FINANCIADOR_DO_PROJETO][i];
+        const name = financierJson[Curriculum.NOME_INSTITUICAO];
+        const code = financierJson[Curriculum.CODIGO_INSTITUICAO];
+        const nature = financierJson[Curriculum.NATUREZA];
+        financiersDto.push({ name, code, nature });
       }
+      return financiersDto;
+    }
   }
 
   getProjectData(researchProject: any, professor: Professor) {
@@ -1243,10 +1149,16 @@ export class ImportJsonService {
     }
   }
 
-  async processJson(file: string, username: string, journals: Journal[], conferences: Conference[], queryRunner: QueryRunner){
+  async processJson(
+    file: string,
+    username: string,
+    journals: Journal[],
+    conferences: Conference[],
+    queryRunner: QueryRunner,
+  ) {
     await queryRunner.startTransaction();
 
-    try{
+    try {
       this.updateJsonStatus(file, undefined, Status.LOADING, undefined);
       let importJsonLog = this.createImportLog(file, username, 'undefined');
       let professorDto: CreateProfessorDto | undefined;
@@ -1255,14 +1167,14 @@ export class ImportJsonService {
         const filePath = `${this.JSON_PATH}/${file}`;
         const raw = await readFile(filePath, 'utf-8');
         const jsonRaw = JSON.parse(raw);
-        
+
         professorDto = this.getProfessorData(jsonRaw);
-      
+
         this.updateJsonStatus(file, file, Status.PROGRESS, professorDto.name);
-        
+
         const professor = await this.insertProfessor(professorDto, queryRunner);
         importJsonLog = this.createImportLog(file, username, professor.name);
-        
+
         const articles = this.getArticlesFromJSON(jsonRaw);
         await this.insertArticles(articles, professor, journals, queryRunner);
 
@@ -1292,11 +1204,11 @@ export class ImportJsonService {
 
         importJsonLog.message += 'SUCCESS';
         this.updateJsonStatus(file, file, Status.CONCLUDED, professorDto.name);
-      }catch(err){
+      } catch (err) {
         importJsonLog.message += 'FAILED';
         this.updateJsonStatus(file, undefined, Status.NOT_IMPORTED, professorDto?.name);
         throw err;
-      }finally{
+      } finally {
         this.updateStoredJson(file);
         await this.save(importJsonLog);
       }
@@ -1324,16 +1236,15 @@ export class ImportJsonService {
       importJson.name = id;
       importJson.user = importedJson.user;
       importJson.status = Status.PENDING;
-      importJson.startedAt = undefined;
-      importJson.finishedAt = undefined;
+      importJson.startedAt = null;
+      importJson.finishedAt = null;
       importJson.storedJson = true;
 
-      await AppDataSource.getRepository(ImportJson).save(importJson);
-      
+      await AppDataSource.manager.save(importJson);
+
       await queryRunner.commitTransaction();
 
-      await this.processJson(id, importedJson.name, journals, conferences, queryRunner);
-
+      await this.processJson(id, importedJson.user, journals, conferences, queryRunner);
     } catch (err) {
       await queryRunner.rollbackTransaction();
       console.error('Erro ao processar json:', err);
@@ -1345,9 +1256,10 @@ export class ImportJsonService {
     return importedJson;
   }
 
-  
-  async insertDataToDatabase(username: string) {
-    const files = await readdir(this.JSON_PATH);
+  async insertDataToDatabase(username: string, files: string[]) {
+    if (!files || files.length === 0) {
+      throw new Error('No files to process');
+    }
     const queryRunner = AppDataSource.createQueryRunner();
 
     try {
@@ -1357,13 +1269,13 @@ export class ImportJsonService {
       for (const file of files) {
         await this.processJson(file, username, journals, conferences, queryRunner);
       }
-    }  finally {
+    } finally {
       await queryRunner.release();
     }
   }
 
   async processImportJson(file: Express.Multer.File, username: string) {
-      await this.splitJsonData(file.path, username);
-      this.insertDataToDatabase(username);
+    const files = await this.splitJsonData(file.path, username);
+    this.insertDataToDatabase(username, files);
   }
 }

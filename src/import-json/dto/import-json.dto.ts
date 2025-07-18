@@ -4,7 +4,7 @@ export class ImportJsonDto {
   professor?: string;
   user!: string;
   status!: string;
-  storedXml!: boolean;
+  storedJson!: boolean;
   includedAt!: Date;
   importTime?: number;
 }

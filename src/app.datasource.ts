@@ -65,7 +65,6 @@ export const AppDataSource = new DataSource({
     Patent,
     ArtisticProduction,
     Scholarship,
-    ImportJson
   ],
   migrations: [
     CreateDatabase1641912530758,
