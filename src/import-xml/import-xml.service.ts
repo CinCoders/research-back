@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import extract from 'extract-zip';
 import * as fs from 'fs';
 import { readdir, readFile, rename, unlink } from 'fs/promises';
-import { extname } from 'path';
+import path, { extname } from 'path';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
 import { ConferenceDto } from 'src/professor/dto/conference.dto';
 import { CreateProfessorDto } from 'src/professor/dto/create-professor.dto';
@@ -183,6 +183,7 @@ export class ImportXmlService {
   async parseXMLDocument(file: Express.Multer.File) {
     let xmlData: string;
     // se um dos arquivos for no formato zip, vamos extraí-lo
+    //console.log('Unzipping file...');
     if (extname(file.originalname) === '.zip') {
       await this.unzipFile(file);
       xmlData = await readFile(this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml', {
@@ -1253,23 +1254,36 @@ export class ImportXmlService {
     }
   }
 
-  async unzipFile(file: Express.Multer.File) {
+ async unzipFile(file: Express.Multer.File) {
     try {
       const zipPath = file.path;
+      const absoluteDir = path.resolve(this.XML_PATH);
+      
+      let extractedXMLPath: string | null = null;
+
       await extract(zipPath, {
-        dir: this.XML_PATH,
+        dir: absoluteDir,   
+        onEntry: (entry) => {
+          if (entry.fileName.endsWith('.xml')) {
+            extractedXMLPath = `${absoluteDir}/${entry.fileName}`;
+          }
+        },
       });
-      await rename(
-        this.XML_PATH + '/' + 'curriculo.xml',
-        this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml',
-      );
-      unlink(zipPath);
-      file.path = this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml';
+
+      if (!extractedXMLPath) {
+        throw new Error('Nenhum arquivo .xml encontrado no .zip.');
+      }      
+      
+      await rename(extractedXMLPath, `${absoluteDir}/${file.originalname.split('.')[0]}.xml`);
+      await unlink(zipPath);
+
+      file.path = `${absoluteDir}/${file.originalname.split('.')[0]}.xml`;
     } catch (err) {
-      await logErrorToDatabase(err, EntityType.UNZIP, undefined);
+      await logErrorToDatabase(err, EntityType.UNZIP);
+      throw err;
+
     }
   }
-
   async deleteFiles() {
     if (process.env.XML_PATH) {
       const files = await readdir(process.env.XML_PATH);
