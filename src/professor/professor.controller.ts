@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { AuthenticatedUser, Public, Roles } from 'nest-keycloak-connect';
+import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
 import { ProfessorPatentDto } from 'src/patents/dto/professor-patent.dto';
 import { SystemRoles } from 'src/types/enums';
 import { AdviseeFormatDto } from './dto/advisee-format.dto';
@@ -94,6 +94,23 @@ export class ProfessorController {
     }
 
     return this.professorService.getStudents(filter, id, lattes);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Returns professor supervisions.',
+    isArray: true,
+    type: AdviseeFormatDto,
+  })
+  @Get('professor-supervisions')
+  getProfessorSupervisions(
+    @Query('lattes', new ValidationPipe({ transform: true })) lattes: string,
+  ): Promise<AdviseeFormatDto[]> {
+    if (!lattes) {
+      throw new Error('Lattes precisa ser informado.');
+    }
+
+    return this.professorService.getProfessorSupervisions(lattes);
   }
 
   @ApiResponse({
