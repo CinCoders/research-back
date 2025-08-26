@@ -142,7 +142,7 @@ export class ProfessorController {
     type: ExecutedActivitiesDto,
   })
   @Get('executed-activities')
-  getExecutedActivities(@Query() lattes: string): Promise<ExecutedActivitiesDto> {
+  getExecutedActivities(@Query('lattes') lattes: string): Promise<ExecutedActivitiesDto> {
     return this.professorService.getExecutedActivities(lattes);
   }
 
