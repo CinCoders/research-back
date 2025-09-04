@@ -115,7 +115,7 @@ export class ImportJsonService {
     }
   }
 
-  async findAllJsons(paginationDto: PaginationDto) {
+  async findAll(paginationDto: PaginationDto) {
     const totalCount = await AppDataSource.createQueryBuilder().select().from(ImportJson, 'i').getCount();
 
     const importedJsonEntity = await AppDataSource.createQueryBuilder()

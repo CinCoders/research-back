@@ -58,7 +58,7 @@ export class ImportJsonController {
     @Query('page') page: number,
     @Query('offset') offset: number | undefined,
   ): Promise<Response<Page<ImportJsonDto[]>>> {
-    const importedJsons = await this.importJsonService.findAllJsons({
+    const importedJsons = await this.importJsonService.findAll({
       limit: limit ?? 25,
       page: page ?? 0,
       offset: offset ?? (limit ?? 25) * (page ?? 0),
