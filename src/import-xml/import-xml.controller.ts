@@ -71,4 +71,26 @@ export class ImportXmlController {
     const importedXml = await this.importXmlService.reprocessXML(id);
     return res.status(200).send(importedXml);
   }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Imports the Lattes CVs of all professors',
+  })
+  @Post('professors/lattes/import')
+  async importAllProfessors(@AuthenticatedUser() user: any, @Res() res: Response) {
+    const username = `${user.name} (${user.email})`;
+    await this.importXmlService.importAllProfessors(username);
+    return res.sendStatus(200);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Imports the Lattes CV of a specific professor by id',
+  })
+  @Post('professors/:id/lattes/import')
+  async importProfessorById(@AuthenticatedUser() user: any, @Res() res: Response, @Param('id') id: string) {
+    const username = `${user.name} (${user.email})`;
+    await this.importXmlService.importProfessorById(id, username);
+    return res.sendStatus(200);
+  }
 }
