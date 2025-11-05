@@ -93,7 +93,6 @@ export class ProfessorService {
     }
 
     const result = await query.getOne();
-
     return result;
   }
 

@@ -1,0 +1,42 @@
+import { ApiProperty, ApiTags } from '@nestjs/swagger';
+import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+
+@ApiTags('Json Imports')
+@Entity({ name: 'json_imports' })
+export class ImportJson {
+  @ApiProperty()
+  @PrimaryColumn({ name: 'id' })
+  id!: string;
+
+  @ApiProperty()
+  @Column({ name: 'name', length: 50 })
+  name!: string;
+
+  @ApiProperty()
+  @Column({ name: 'professor_name', length: 100, nullable: true })
+  professorName?: string;
+
+  @ApiProperty()
+  @Column({ name: 'user', length: 80 })
+  user!: string;
+
+  @ApiProperty()
+  @Column({ name: 'status' })
+  status!: string;
+
+  @ApiProperty()
+  @Column({ name: 'stored_json' })
+  storedJson!: boolean;
+
+  @ApiProperty()
+  @UpdateDateColumn({ name: 'included_at', type: 'timestamptz' })
+  includedAt!: Date;
+
+  @ApiProperty()
+  @Column({ name: 'started_at', nullable: true, type: 'timestamptz' })
+  startedAt?: Date | null;
+
+  @ApiProperty()
+  @Column({ name: 'finished_at', nullable: true, type: 'timestamptz' })
+  finishedAt?: Date | null;
+}
