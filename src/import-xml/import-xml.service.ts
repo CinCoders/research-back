@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import extract from 'extract-zip';
 import * as fs from 'fs';
+import { promisify } from 'util';
 import { readdir, readFile, rename, unlink } from 'fs/promises';
 import path, { extname } from 'path';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
@@ -196,7 +197,7 @@ export class ImportXmlService {
       });
     } else {
       try {
-        await rename(file.path, this.XML_PATH + '/' + file.originalname);
+        await this.renameFile(file.path, this.XML_PATH + '/' + file.originalname);
         file.path = this.XML_PATH + '/' + file.originalname;
       } catch (error) {
         if (error instanceof Error) {
@@ -1341,17 +1342,18 @@ export class ImportXmlService {
     return normalizedPath;
   };
 
-  renameFile = (oldPath: string, newPath: string) => {
-    return new Promise((resolve, reject) => {
-      fs.rename(oldPath, newPath, err => {
-        if (err) {
-          console.error('Error occurred during file renaming:', err);
-          reject(err);
-        } else {
-          resolve('File renamed successfully.');
-        }
-      });
-    });
+  copyFile = promisify(fs.copyFile);
+  unlink = promisify(fs.unlink);
+
+  renameFile = async (oldPath: string, newPath: string): Promise<string> => {
+    try {
+      await this.copyFile(oldPath, newPath);
+      await unlink(oldPath);
+      return 'File moved successfully.';
+    } catch (err) {
+      console.error('Error occurred during file move:', err);
+      throw err;
+    }
   };
 
   async save(importXmlLog: Log) {
