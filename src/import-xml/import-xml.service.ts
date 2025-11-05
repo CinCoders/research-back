@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import extract from 'extract-zip';
 import * as fs from 'fs';
 import { promisify } from 'util';
 import { readdir, readFile, rename, unlink } from 'fs/promises';
-import { extname } from 'path';
+import path, { extname } from 'path';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
 import { ConferenceDto } from 'src/professor/dto/conference.dto';
 import { CreateProfessorDto } from 'src/professor/dto/create-professor.dto';
@@ -42,7 +42,12 @@ import { PaginationDto } from '../types/pagination.dto';
 import { Curriculum } from './curriculum.enum';
 import { ImportXmlDto } from './dto/import-xml.dto';
 import { ImportXml } from './entities/import-xml.entity';
-
+import { Client } from 'nestjs-soap';
+import { WsCurriculoGetCurriculoCompactado, WsCurriculoGetDataAtualizacaoCv } from 'src/soap/wscurriculo';
+import { Buffer } from 'buffer';
+import AdmZip from 'adm-zip';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { Readable } from 'stream';
 @Injectable()
 export class ImportXmlService {
   path = require('path');
@@ -62,6 +67,7 @@ export class ImportXmlService {
     private readonly translationService: TranslationService,
     private readonly patentService: PatentService,
     private readonly artisticProductionService: ArtisticProductionService,
+    @Inject('LATTES_SOAP_CLIENT') private readonly lattesSoapClient: Client,
   ) {}
 
   async findAllXmlsPaginated(paginationDto: PaginationDto) {
@@ -1257,17 +1263,29 @@ export class ImportXmlService {
   async unzipFile(file: Express.Multer.File) {
     try {
       const zipPath = file.path;
+      const absoluteDir = path.resolve(this.XML_PATH);
+
+      let extractedXMLPath: string | null = null;
+
       await extract(zipPath, {
-        dir: this.XML_PATH,
+        dir: absoluteDir,
+        onEntry: entry => {
+          if (entry.fileName.endsWith('.xml')) {
+            extractedXMLPath = `${absoluteDir}/${file.originalname.split('.')[0]}.xml`;
+          }
+        },
       });
-      await rename(
-        this.XML_PATH + '/' + 'curriculo.xml',
-        this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml',
-      );
-      unlink(zipPath);
-      file.path = this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml';
+
+      if (!extractedXMLPath) {
+        throw new Error('Nenhum arquivo .xml encontrado no .zip.');
+      }
+
+      await unlink(zipPath);
+      file.path = extractedXMLPath;
     } catch (err) {
-      await logErrorToDatabase(err, EntityType.UNZIP, undefined);
+      console.error('Error during unzip operation:', err);
+      await logErrorToDatabase(err, EntityType.UNZIP);
+      throw err;
     }
   }
 
@@ -1451,6 +1469,7 @@ export class ImportXmlService {
           } catch (err) {
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(files[i].filename, undefined, Status.NOT_IMPORTED, professorDto?.name);
+            console.error('Error processing file:', files[i].originalname, err);
             throw err;
           } finally {
             // Atualiza o storedXml
@@ -1465,6 +1484,120 @@ export class ImportXmlService {
       }
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  async hasProfessorUpdates(professor: Professor): Promise<boolean> {
+    const args: WsCurriculoGetDataAtualizacaoCv = { id: professor.identifier };
+
+    const [result] = await this.lattesSoapClient.getDataAtualizacaoCVAsync(args);
+    const latestUpdate = new Date(result.return);
+
+    const lastImport = await AppDataSource.createQueryBuilder()
+      .select('i')
+      .from(ImportXml, 'i')
+      .where('i.professorName = :name', { name: professor.name })
+      .orderBy('i.includedAt', 'DESC')
+      .getOne();
+
+    return !lastImport || latestUpdate > new Date(lastImport.includedAt);
+  }
+
+  async processProfessorData(professor: Professor, username?: string): Promise<void> {
+    const args: WsCurriculoGetCurriculoCompactado = { id: professor.identifier };
+    const [result] = await this.lattesSoapClient.getCurriculoCompactadoAsync(args);
+    const base64Zip = result.return;
+    const buffer = Buffer.from(base64Zip, 'base64');
+    const zip = new AdmZip(buffer);
+    const zipEntries = zip.getEntries();
+    const xmlEntry = zipEntries[0];
+    const xmlContent = xmlEntry.getData().toString('utf-8');
+
+    if (!professor.identifier) {
+      throw new Error('Professor identifier is undefined');
+    }
+    const filePath = this.generateFilePath(professor.identifier);
+
+    await fs.promises.writeFile(filePath, xmlContent, 'utf-8');
+
+    const tempFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: `${professor.identifier}.xml`,
+      encoding: '7bit',
+      mimetype: 'application/xml',
+      buffer: Buffer.from(xmlContent, 'utf-8'),
+      size: xmlContent.length,
+      destination: this.XML_PATH,
+      filename: uuidv4(),
+      path: filePath,
+      stream: new Readable(),
+    };
+
+    await this.enqueueFiles([tempFile], username || 'atualizado automaticamente');
+  }
+
+  @Cron(CronExpression.EVERY_WEEK)
+  async getCurriculum(): Promise<void> {
+    try {
+      const professors = await this.professorService.findAll();
+
+      for (const professorTableDto of professors) {
+        const professor = await this.professorService.findOne(undefined, professorTableDto.identifier);
+
+        if (!professor) continue;
+
+        const hasUpdates = await this.hasProfessorUpdates(professor);
+
+        if (hasUpdates) {
+          await this.processProfessorData(professor);
+        }
+      }
+    } catch (error) {
+      await logErrorToDatabase(error, EntityType.IMPORT);
+    }
+  }
+
+  async importAllProfessors(username: string): Promise<void> {
+    try {
+      const professors = await this.professorService.findAll();
+      let currentIndex = 0;
+
+      const worker = async () => {
+        while (true) {
+          const index = currentIndex++;
+
+          if (index >= professors.length) break;
+
+          const professor = professors[index];
+          const prof = await this.professorService.findOne(undefined, professor.identifier);
+
+          if (prof) {
+            try {
+              await this.processProfessorData(prof, username);
+            } catch (err) {
+              await logErrorToDatabase(err, EntityType.IMPORT, professor.identifier);
+            }
+          }
+        }
+      };
+
+      const workers = Array.from({ length: 10 }, () => worker());
+      await Promise.all(workers);
+    } catch (error) {
+      await logErrorToDatabase(error, EntityType.IMPORT);
+      throw error;
+    }
+  }
+
+  async importProfessorById(identifier: string, username: string): Promise<void> {
+    try {
+      const professor = await this.professorService.findOne(undefined, identifier);
+      if (!professor) throw new Error('Professor not found');
+
+      await this.processProfessorData(professor, username);
+    } catch (error) {
+      await logErrorToDatabase(error, EntityType.IMPORT);
+      throw error;
     }
   }
 }
