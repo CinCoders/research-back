@@ -49,7 +49,7 @@
     "pg": "^8.7.1",
     "rimraf": "^3.0.2",
     "string-similarity": "^4.0.4",
-    "typeorm": "^0.3.16",
+    "typeorm": "^0.3.27",
     "wsdl-tsclient": "^1.7.1",
     "xml2js": "^0.5.0"
   },
