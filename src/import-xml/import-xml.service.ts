@@ -1,8 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import AdmZip from 'adm-zip';
+import { Buffer } from 'buffer';
 import extract from 'extract-zip';
 import * as fs from 'fs';
-import { promisify } from 'util';
-import { readdir, readFile, rename, unlink } from 'fs/promises';
+import { readdir, readFile, unlink } from 'fs/promises';
+import { Client } from 'nestjs-soap';
 import path, { extname } from 'path';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
 import { ConferenceDto } from 'src/professor/dto/conference.dto';
@@ -24,11 +27,14 @@ import { ConferenceService } from 'src/qualis/conference/conference.service';
 import { Conference } from 'src/qualis/entities/conference.entity';
 import { Journal } from 'src/qualis/entities/journal.entity';
 import { JournalService } from 'src/qualis/qualis.service';
+import { WsCurriculoGetCurriculoCompactado, WsCurriculoGetDataAtualizacaoCv } from 'src/soap/wscurriculo';
 import { Status } from 'src/types/enums';
 import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
 import logErrorToDatabase from 'src/utils/exception-filters/log-error';
 import { Log } from 'src/utils/exception-filters/log.entity';
+import { Readable } from 'stream';
 import { QueryRunner } from 'typeorm';
+import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import { parseStringPromise } from 'xml2js';
 import { AppDataSource } from '.././app.datasource';
@@ -42,12 +48,6 @@ import { PaginationDto } from '../types/pagination.dto';
 import { Curriculum } from './curriculum.enum';
 import { ImportXmlDto } from './dto/import-xml.dto';
 import { ImportXml } from './entities/import-xml.entity';
-import { Client } from 'nestjs-soap';
-import { WsCurriculoGetCurriculoCompactado, WsCurriculoGetDataAtualizacaoCv } from 'src/soap/wscurriculo';
-import { Buffer } from 'buffer';
-import AdmZip from 'adm-zip';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { Readable } from 'stream';
 @Injectable()
 export class ImportXmlService {
   path = require('path');
@@ -1547,12 +1547,12 @@ export class ImportXmlService {
       for (const professorTableDto of professors) {
         const professor = await this.professorService.findOne(undefined, professorTableDto.identifier);
 
-        if (!professor) continue;
+        if (!professor || !professor.identifier) continue;
 
         const hasUpdates = await this.hasProfessorUpdates(professor);
 
         if (hasUpdates) {
-          await this.processProfessorData(professor.identifier!);
+          await this.processProfessorData(professor.identifier);
         }
       }
     } catch (error) {
@@ -1576,7 +1576,9 @@ export class ImportXmlService {
 
           if (prof) {
             try {
-              await this.processProfessorData(prof.identifier!, username);
+              if (!prof.identifier) throw new Error('Professor identifier is undefined');
+
+              await this.processProfessorData(prof.identifier, username);
             } catch (err) {
               await logErrorToDatabase(err, EntityType.IMPORT, professor.identifier);
             }
