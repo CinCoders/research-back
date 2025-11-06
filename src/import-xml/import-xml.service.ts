@@ -1347,8 +1347,12 @@ export class ImportXmlService {
 
   renameFile = async (oldPath: string, newPath: string): Promise<string> => {
     try {
+      if (oldPath === newPath) {
+        return 'Skipped: same path.';
+      }
+
       await this.copyFile(oldPath, newPath);
-      await unlink(oldPath);
+      await this.unlink(oldPath);
       return 'File moved successfully.';
     } catch (err) {
       console.error('Error occurred during file move:', err);
@@ -1406,11 +1410,8 @@ export class ImportXmlService {
           let importXmlLog = this.createImportLog(files[i], username, 'undefined');
           let professorDto: CreateProfessorDto | undefined = undefined;
           try {
-            const json = await this.parseXMLDocument(files[i]);
-
-            // se o professor não existir, criamos, se existir podemos usá-lo
+            const json = await this.parseXMLDocument(files[i]); // se o professor não existir, criamos, se existir podemos usá-lo
             professorDto = this.getProfessorData(json);
-
             const filePath = this.generateFilePath(files[i].originalname);
             try {
               // Renomeia o arquivo para o identificador do professor
@@ -1503,8 +1504,8 @@ export class ImportXmlService {
     return !lastImport || latestUpdate > new Date(lastImport.includedAt);
   }
 
-  async processProfessorData(professor: Professor, username?: string): Promise<void> {
-    const args: WsCurriculoGetCurriculoCompactado = { id: professor.identifier };
+  async processProfessorData(identifier: string, username?: string): Promise<void> {
+    const args: WsCurriculoGetCurriculoCompactado = { id: identifier };
     const [result] = await this.lattesSoapClient.getCurriculoCompactadoAsync(args);
     const base64Zip = result.return;
     const buffer = Buffer.from(base64Zip, 'base64');
@@ -1513,16 +1514,18 @@ export class ImportXmlService {
     const xmlEntry = zipEntries[0];
     const xmlContent = xmlEntry.getData().toString('utf-8');
 
-    if (!professor.identifier) {
+    if (!identifier) {
       throw new Error('Professor identifier is undefined');
     }
-    const filePath = this.generateFilePath(professor.identifier);
+    const filePath = this.generateFilePath(identifier);
+
+    await fs.promises.mkdir(this.XML_PATH, { recursive: true });
 
     await fs.promises.writeFile(filePath, xmlContent, 'utf-8');
 
     const tempFile: Express.Multer.File = {
       fieldname: 'file',
-      originalname: `${professor.identifier}.xml`,
+      originalname: `${identifier}.xml`,
       encoding: '7bit',
       mimetype: 'application/xml',
       buffer: Buffer.from(xmlContent, 'utf-8'),
@@ -1549,7 +1552,7 @@ export class ImportXmlService {
         const hasUpdates = await this.hasProfessorUpdates(professor);
 
         if (hasUpdates) {
-          await this.processProfessorData(professor);
+          await this.processProfessorData(professor.identifier!);
         }
       }
     } catch (error) {
@@ -1573,7 +1576,7 @@ export class ImportXmlService {
 
           if (prof) {
             try {
-              await this.processProfessorData(prof, username);
+              await this.processProfessorData(prof.identifier!, username);
             } catch (err) {
               await logErrorToDatabase(err, EntityType.IMPORT, professor.identifier);
             }
@@ -1591,10 +1594,7 @@ export class ImportXmlService {
 
   async importProfessorById(identifier: string, username: string): Promise<void> {
     try {
-      const professor = await this.professorService.findOne(undefined, identifier);
-      if (!professor) throw new Error('Professor not found');
-
-      await this.processProfessorData(professor, username);
+      await this.processProfessorData(identifier, username);
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;
