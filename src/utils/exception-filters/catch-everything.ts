@@ -1,6 +1,6 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import { getRepository } from 'typeorm';
+import { AppDataSource } from '../../app.datasource';
 import { Log } from './log.entity';
 
 @Catch()
@@ -12,24 +12,32 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const ctx = host.switchToHttp();
 
-    const logsRepository = getRepository(Log);
-    let cache: any = [];
+    if (AppDataSource && AppDataSource.isInitialized) {
+      try {
+        const logsRepository = AppDataSource.getRepository(Log);
+        let cache: any = [];
 
-    const log: Log = logsRepository.create({
-      entityId: '0',
-      entityType: 'AllExceptions',
-      message: JSON.stringify(exception),
-      executionContextHost: JSON.stringify(host, (key, value) => {
-        if (typeof value === 'object' && value !== null) {
-          if (cache.includes(value)) return;
+        const log: Log = logsRepository.create({
+          entityId: '0',
+          entityType: 'AllExceptions',
+          message: JSON.stringify(exception),
+          executionContextHost: JSON.stringify(host, (key, value) => {
+            if (typeof value === 'object' && value !== null) {
+              if (cache.includes(value)) return;
 
-          cache.push(value);
-        }
-        return value;
-      }),
-    });
-    cache = null;
-    await logsRepository.save(log);
+              cache.push(value);
+            }
+            return value;
+          }),
+        });
+        cache = null;
+        await logsRepository.save(log);
+      } catch (err) {
+        console.error('Failed to persist exception log:', err);
+      }
+    } else {
+      console.warn('AppDataSource not initialized; skipping exception persistence.');
+    }
 
     const httpStatus = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     const response =
