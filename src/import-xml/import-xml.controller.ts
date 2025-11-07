@@ -2,14 +2,15 @@ import { Controller, Get, Param, Post, Query, Res, UploadedFiles, UseInterceptor
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { AuthenticatedUser, Public } from 'nest-keycloak-connect';
+import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
 import { extname } from 'path';
+import { SystemRoles } from 'src/types/enums';
 import { Page } from '../types/page.dto';
 import { ImportXmlDto } from './dto/import-xml.dto';
 import { ImportXmlService } from './import-xml.service';
 
 @ApiTags('Import XML Module')
-// @Roles({ roles: [SystemRoles.USERS] })
+@Roles({ roles: [SystemRoles.USERS] })
 @Controller('import-xml')
 @ApiOAuth2([])
 export class ImportXmlController {
@@ -47,7 +48,6 @@ export class ImportXmlController {
     isArray: true,
   })
   @Get()
-  @Public(true)
   async findAllXmlsPaginated(
     @Res() res: Response,
     @Query('limit') limit: number,
@@ -88,10 +88,9 @@ export class ImportXmlController {
     description: 'Imports the Lattes CV of a specific professor by id',
   })
   @Post('professors/:id/lattes/import')
-  @Public(true)
   async importProfessorById(@AuthenticatedUser() user: any, @Res() res: Response, @Param('id') id: string) {
-    // const username = `${user.name} (${user.email})`;
-    await this.importXmlService.importProfessorById(id, 'ecb');
+    const username = `${user.name} (${user.email})`;
+    await this.importXmlService.importProfessorById(id, username);
     return res.sendStatus(200);
   }
 }
