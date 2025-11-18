@@ -5,6 +5,7 @@ import { Buffer } from 'buffer';
 import extract from 'extract-zip';
 import * as fs from 'fs';
 import { readdir, readFile, unlink } from 'fs/promises';
+import iconv from 'iconv-lite';
 import { Client } from 'nestjs-soap';
 import path, { extname } from 'path';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
@@ -48,6 +49,7 @@ import { PaginationDto } from '../types/pagination.dto';
 import { Curriculum } from './curriculum.enum';
 import { ImportXmlDto } from './dto/import-xml.dto';
 import { ImportXml } from './entities/import-xml.entity';
+
 @Injectable()
 export class ImportXmlService {
   path = require('path');
@@ -1303,10 +1305,10 @@ export class ImportXmlService {
     importXml.entityType = EntityType.IMPORT;
     importXml.executionContextHost = '';
     importXml.message = `Original name: ${file.originalname}
-      File name: ${file.filename}
-      Username: ${username}
-      Professor name: ${professorName}
-      Result: `;
+			File name: ${file.filename}
+			Username: ${username}
+			Professor name: ${professorName}
+			Result: `;
 
     return importXml;
   }
@@ -1512,7 +1514,16 @@ export class ImportXmlService {
     const zip = new AdmZip(buffer);
     const zipEntries = zip.getEntries();
     const xmlEntry = zipEntries[0];
-    const xmlContent = xmlEntry.getData().toString('utf-8');
+    const xmlData = xmlEntry.getData();
+    const xmlContentTemp = xmlData.toString('utf-8');
+    const xmlCustomEncoding = xmlContentTemp
+      .match(/encoding="([^"]+)"/)
+      ?.at(1)
+      ?.toString();
+    const xmlContent =
+      xmlCustomEncoding && iconv.encodingExists(xmlCustomEncoding)
+        ? iconv.decode(xmlData, xmlCustomEncoding)
+        : xmlContentTemp;
 
     if (!identifier) {
       throw new Error('Professor identifier is undefined');

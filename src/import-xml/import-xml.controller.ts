@@ -1,13 +1,13 @@
 import { Controller, Get, Param, Post, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
-import { ImportXmlService } from './import-xml.service';
-import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { extname } from 'path';
 import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
+import { extname } from 'path';
 import { SystemRoles } from 'src/types/enums';
-import { ImportXmlDto } from './dto/import-xml.dto';
 import { Page } from '../types/page.dto';
+import { ImportXmlDto } from './dto/import-xml.dto';
+import { ImportXmlService } from './import-xml.service';
 
 @ApiTags('Import XML Module')
 @Roles({ roles: [SystemRoles.USERS] })
