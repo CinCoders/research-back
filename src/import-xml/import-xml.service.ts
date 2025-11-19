@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import AdmZip from 'adm-zip';
 import { Buffer } from 'buffer';
 import extract from 'extract-zip';
@@ -1550,26 +1549,26 @@ export class ImportXmlService {
     await this.enqueueFiles([tempFile], username || 'atualizado automaticamente');
   }
 
-  @Cron(CronExpression.EVERY_WEEK)
-  async getCurriculum(): Promise<void> {
-    try {
-      const professors = await this.professorService.findAll();
+  // @Cron(CronExpression.EVERY_WEEK)
+  // async getCurriculum(): Promise<void> {
+  //   try {
+  //     const professors = await this.professorService.findAll();
 
-      for (const professorTableDto of professors) {
-        const professor = await this.professorService.findOne(undefined, professorTableDto.identifier);
+  //     for (const professorTableDto of professors) {
+  //       const professor = await this.professorService.findOne(undefined, professorTableDto.identifier);
 
-        if (!professor || !professor.identifier) continue;
+  //       if (!professor || !professor.identifier) continue;
 
-        const hasUpdates = await this.hasProfessorUpdates(professor);
+  //       const hasUpdates = await this.hasProfessorUpdates(professor);
 
-        if (hasUpdates) {
-          await this.processProfessorData(professor.identifier);
-        }
-      }
-    } catch (error) {
-      await logErrorToDatabase(error, EntityType.IMPORT);
-    }
-  }
+  //       if (hasUpdates) {
+  //         await this.processProfessorData(professor.identifier);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     await logErrorToDatabase(error, EntityType.IMPORT);
+  //   }
+  // }
 
   async importAllProfessors(username: string): Promise<void> {
     try {
