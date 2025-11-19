@@ -46,7 +46,6 @@
     "iconv-lite": "^0.7.0",
     "nest-keycloak-connect": "^1.9.1",
     "nestjs-soap": "^3.0.4",
-    "node-cron": "^4.2.1",
     "pg": "^8.7.1",
     "rimraf": "^3.0.2",
     "string-similarity": "^4.0.4",
