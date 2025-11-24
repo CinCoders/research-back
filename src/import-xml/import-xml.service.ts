@@ -1585,7 +1585,7 @@ export class ImportXmlService {
         }
       }
 
-      await this.enqueueFiles(tempFiles, username || 'atualizado automaticamente')
+      await this.enqueueFiles(tempFiles, username ?? 'Sistema')
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;
@@ -1595,7 +1595,7 @@ export class ImportXmlService {
   async importProfessorById(identifier: string, username: string): Promise<void> {
     try {
       const tempFile = await this.processProfessorData(identifier, username);
-      await this.enqueueFiles([tempFile], username || 'atualizado automaticamente');
+      await this.enqueueFiles([tempFile], username ?? 'Sistema');
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;
