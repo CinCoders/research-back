@@ -1505,7 +1505,7 @@ export class ImportXmlService {
     return !lastImport || latestUpdate > new Date(lastImport.includedAt);
   }
 
-  async processProfessorData(identifier: string, username?: string): Promise<void> {
+  async processProfessorData(identifier: string, username?: string): Promise<Express.Multer.File> {
     const args: WsCurriculoGetCurriculoCompactado = { id: identifier };
     const [result] = await this.lattesSoapClient.getCurriculoCompactadoAsync(args);
     const base64Zip = result.return;
@@ -1546,7 +1546,7 @@ export class ImportXmlService {
       stream: new Readable(),
     };
 
-    await this.enqueueFiles([tempFile], username || 'atualizado automaticamente');
+    return tempFile;
   }
 
   // @Cron(CronExpression.EVERY_WEEK)
@@ -1573,16 +1573,19 @@ export class ImportXmlService {
   async executeBackgroundProfessorsUpdate(username: string): Promise<void> {
     try {
       const professors = await this.professorService.findAll();
+      const tempFiles: Express.Multer.File[] = []; 
 
       for (const { identifier, professorId } of professors) {
         try {
           if (!identifier) throw new Error('Professor identifier is undefined');
 
-          await this.processProfessorData(identifier, username);
+          tempFiles.push(await this.processProfessorData(identifier, username));
         } catch (err) {
           await logErrorToDatabase(err, EntityType.IMPORT, String(professorId));
         }
       }
+
+      await this.enqueueFiles(tempFiles, username || 'atualizado automaticamente')
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;
@@ -1591,7 +1594,8 @@ export class ImportXmlService {
 
   async importProfessorById(identifier: string, username: string): Promise<void> {
     try {
-      await this.processProfessorData(identifier, username);
+      const tempFile = await this.processProfessorData(identifier, username);
+      await this.enqueueFiles([tempFile], username || 'atualizado automaticamente');
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;
