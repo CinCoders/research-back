@@ -4,6 +4,7 @@ import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
 import { extname } from 'path';
+import { ProfessorService } from 'src/professor/professor.service';
 import { SystemRoles } from 'src/types/enums';
 import { Page } from '../types/page.dto';
 import { ImportXmlDto } from './dto/import-xml.dto';
@@ -14,7 +15,7 @@ import { ImportXmlService } from './import-xml.service';
 @Controller('import-xml')
 @ApiOAuth2([])
 export class ImportXmlController {
-  constructor(private readonly importXmlService: ImportXmlService) {}
+  constructor(private readonly importXmlService: ImportXmlService, private readonly professorService: ProfessorService) {}
 
   @Post()
   @UseInterceptors(
@@ -79,8 +80,10 @@ export class ImportXmlController {
   @Post('professors/lattes/import')
   async importAllProfessors(@AuthenticatedUser() user: any, @Res() res: Response) {
     const username = `${user.name} (${user.email})`;
-    await this.importXmlService.importAllProfessors(username);
-    return res.sendStatus(200);
+    const professorsCount = await this.professorService.count();
+    this.importXmlService.executeBackgroundProfessorsUpdate(username);
+
+    return res.status(200).json({ professorsCount });
   }
 
   @ApiResponse({

@@ -1506,6 +1506,10 @@ export class ImportXmlService {
   }
 
   async processProfessorData(identifier: string, username?: string): Promise<void> {
+    if (!identifier) {
+      throw new Error('Professor identifier is undefined');
+    }
+
     const args: WsCurriculoGetCurriculoCompactado = { id: identifier };
     const [result] = await this.lattesSoapClient.getCurriculoCompactadoAsync(args);
     const base64Zip = result.return;
@@ -1523,10 +1527,6 @@ export class ImportXmlService {
       xmlCustomEncoding && iconv.encodingExists(xmlCustomEncoding)
         ? iconv.decode(xmlData, xmlCustomEncoding)
         : xmlContentTemp;
-
-    if (!identifier) {
-      throw new Error('Professor identifier is undefined');
-    }
     const filePath = this.generateFilePath(identifier);
 
     await fs.promises.mkdir(this.XML_PATH, { recursive: true });
@@ -1570,34 +1570,19 @@ export class ImportXmlService {
   //   }
   // }
 
-  async importAllProfessors(username: string): Promise<void> {
+  async executeBackgroundProfessorsUpdate(username: string): Promise<void> {
     try {
       const professors = await this.professorService.findAll();
-      let currentIndex = 0;
 
-      const worker = async () => {
-        while (true) {
-          const index = currentIndex++;
+      for (const { identifier, professorId } of professors) {
+        try {
+          if (!identifier) throw new Error('Professor identifier is undefined');
 
-          if (index >= professors.length) break;
-
-          const professor = professors[index];
-          const prof = await this.professorService.findOne(undefined, professor.identifier);
-
-          if (prof) {
-            try {
-              if (!prof.identifier) throw new Error('Professor identifier is undefined');
-
-              await this.processProfessorData(prof.identifier, username);
-            } catch (err) {
-              await logErrorToDatabase(err, EntityType.IMPORT, professor.identifier);
-            }
-          }
+          await this.processProfessorData(identifier, username);
+        } catch (err) {
+          await logErrorToDatabase(err, EntityType.IMPORT, String(professorId));
         }
-      };
-
-      const workers = Array.from({ length: 10 }, () => worker());
-      await Promise.all(workers);
+      }
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;
