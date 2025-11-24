@@ -1506,6 +1506,10 @@ export class ImportXmlService {
   }
 
   async processProfessorData(identifier: string, username?: string): Promise<Express.Multer.File> {
+    if (!identifier) {
+      throw new Error('Professor identifier is undefined');
+    }
+
     const args: WsCurriculoGetCurriculoCompactado = { id: identifier };
     const [result] = await this.lattesSoapClient.getCurriculoCompactadoAsync(args);
     const base64Zip = result.return;
@@ -1523,10 +1527,6 @@ export class ImportXmlService {
       xmlCustomEncoding && iconv.encodingExists(xmlCustomEncoding)
         ? iconv.decode(xmlData, xmlCustomEncoding)
         : xmlContentTemp;
-
-    if (!identifier) {
-      throw new Error('Professor identifier is undefined');
-    }
     const filePath = this.generateFilePath(identifier);
 
     await fs.promises.mkdir(this.XML_PATH, { recursive: true });
