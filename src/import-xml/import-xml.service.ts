@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import AdmZip from 'adm-zip';
 import { Buffer } from 'buffer';
 import extract from 'extract-zip';
@@ -1506,7 +1505,11 @@ export class ImportXmlService {
     return !lastImport || latestUpdate > new Date(lastImport.includedAt);
   }
 
-  async processProfessorData(identifier: string, username?: string): Promise<void> {
+  async processProfessorData(identifier: string, username?: string): Promise<Express.Multer.File> {
+    if (!identifier) {
+      throw new Error('Professor identifier is undefined');
+    }
+
     const args: WsCurriculoGetCurriculoCompactado = { id: identifier };
     const [result] = await this.lattesSoapClient.getCurriculoCompactadoAsync(args);
     const base64Zip = result.return;
@@ -1524,10 +1527,6 @@ export class ImportXmlService {
       xmlCustomEncoding && iconv.encodingExists(xmlCustomEncoding)
         ? iconv.decode(xmlData, xmlCustomEncoding)
         : xmlContentTemp;
-
-    if (!identifier) {
-      throw new Error('Professor identifier is undefined');
-    }
     const filePath = this.generateFilePath(identifier);
 
     await fs.promises.mkdir(this.XML_PATH, { recursive: true });
@@ -1547,58 +1546,46 @@ export class ImportXmlService {
       stream: new Readable(),
     };
 
-    await this.enqueueFiles([tempFile], username || 'atualizado automaticamente');
+    return tempFile;
   }
 
-  @Cron(CronExpression.EVERY_WEEK)
-  async getCurriculum(): Promise<void> {
+  // @Cron(CronExpression.EVERY_WEEK)
+  // async getCurriculum(): Promise<void> {
+  //   try {
+  //     const professors = await this.professorService.findAll();
+
+  //     for (const professorTableDto of professors) {
+  //       const professor = await this.professorService.findOne(undefined, professorTableDto.identifier);
+
+  //       if (!professor || !professor.identifier) continue;
+
+  //       const hasUpdates = await this.hasProfessorUpdates(professor);
+
+  //       if (hasUpdates) {
+  //         await this.processProfessorData(professor.identifier);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     await logErrorToDatabase(error, EntityType.IMPORT);
+  //   }
+  // }
+
+  async executeBackgroundProfessorsUpdate(username: string): Promise<void> {
     try {
       const professors = await this.professorService.findAll();
+      const tempFiles: Express.Multer.File[] = []; 
 
-      for (const professorTableDto of professors) {
-        const professor = await this.professorService.findOne(undefined, professorTableDto.identifier);
+      for (const { identifier, professorId } of professors) {
+        try {
+          if (!identifier) throw new Error('Professor identifier is undefined');
 
-        if (!professor || !professor.identifier) continue;
-
-        const hasUpdates = await this.hasProfessorUpdates(professor);
-
-        if (hasUpdates) {
-          await this.processProfessorData(professor.identifier);
+          tempFiles.push(await this.processProfessorData(identifier, username));
+        } catch (err) {
+          await logErrorToDatabase(err, EntityType.IMPORT, String(professorId));
         }
       }
-    } catch (error) {
-      await logErrorToDatabase(error, EntityType.IMPORT);
-    }
-  }
 
-  async importAllProfessors(username: string): Promise<void> {
-    try {
-      const professors = await this.professorService.findAll();
-      let currentIndex = 0;
-
-      const worker = async () => {
-        while (true) {
-          const index = currentIndex++;
-
-          if (index >= professors.length) break;
-
-          const professor = professors[index];
-          const prof = await this.professorService.findOne(undefined, professor.identifier);
-
-          if (prof) {
-            try {
-              if (!prof.identifier) throw new Error('Professor identifier is undefined');
-
-              await this.processProfessorData(prof.identifier, username);
-            } catch (err) {
-              await logErrorToDatabase(err, EntityType.IMPORT, professor.identifier);
-            }
-          }
-        }
-      };
-
-      const workers = Array.from({ length: 10 }, () => worker());
-      await Promise.all(workers);
+      await this.enqueueFiles(tempFiles, username || 'atualizado automaticamente')
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;
@@ -1607,7 +1594,8 @@ export class ImportXmlService {
 
   async importProfessorById(identifier: string, username: string): Promise<void> {
     try {
-      await this.processProfessorData(identifier, username);
+      const tempFile = await this.processProfessorData(identifier, username);
+      await this.enqueueFiles([tempFile], username || 'atualizado automaticamente');
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;

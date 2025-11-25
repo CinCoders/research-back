@@ -33,6 +33,10 @@ export class ProfessorService {
     return professor;
   }
 
+  async count(): Promise<number> {
+    return AppDataSource.createQueryBuilder().select('p').from(Professor, 'p').getCount();
+  }
+
   async findAll(): Promise<ProfessorTableDto[]> {
     const professors = await AppDataSource.createQueryBuilder()
       .select(['p.id as id', 'p.identifier as identifier', 'p.name as name'])

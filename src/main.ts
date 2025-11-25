@@ -58,7 +58,7 @@ async function bootstrap() {
 
   await AppDataSource.initialize()
     .then(() => console.log('LOG [Typeorm] Success connection'))
-    .catch((error) => console.log(error));
+    .catch(error => console.log(error));
 
   const document = SwaggerModule.createDocument(app, config);
 
