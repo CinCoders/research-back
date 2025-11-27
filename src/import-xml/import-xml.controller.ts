@@ -1,4 +1,4 @@
-import { Controller, Get, HttpException, HttpStatus, Param, Post, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -77,16 +77,14 @@ export class ImportXmlController {
     status: 200,
     description: 'Imports the Lattes CVs of all professors',
   })
-  @Post('professors/lattes/import')
-  async importAllProfessors(@AuthenticatedUser() user: any, @Res() res: Response) {
+  @Post('update-all')
+  async updateProfessors(@AuthenticatedUser() user: any, @Res() res: Response) {
     const username = `${user.name} (${user.email})`;
     const professorsCount = await this.professorService.count();
 
-    if (professorsCount === 0) {
-      throw new HttpException('Nenhum professor encontrado', HttpStatus.NOT_FOUND);
+    if (professorsCount > 0) {
+      this.importXmlService.executeBackgroundProfessorsUpdate(username);
     }
-
-    this.importXmlService.executeBackgroundProfessorsUpdate(username);
 
     return res.status(200).json({ professorsCount });
   }
