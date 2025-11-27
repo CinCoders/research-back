@@ -194,7 +194,7 @@ export class ImportXmlService {
     if (extname(file.originalname) === '.zip') {
       await this.unzipFile(file);
       xmlData = await readFile(this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml', {
-        encoding: 'latin1',
+        encoding: 'utf8',
       });
     } else {
       try {
@@ -209,7 +209,7 @@ export class ImportXmlService {
       }
 
       xmlData = await readFile(this.XML_PATH + '/' + file.originalname, {
-        encoding: 'latin1',
+        encoding: 'utf8',
       });
     }
     const object = await parseStringPromise(xmlData);
