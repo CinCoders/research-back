@@ -98,23 +98,6 @@ export class ProfessorController {
 
   @ApiResponse({
     status: 200,
-    description: 'Returns professor supervisions.',
-    isArray: true,
-    type: AdviseeFormatDto,
-  })
-  @Get('professor-supervisions')
-  getProfessorSupervisions(
-    @Query('lattes', new ValidationPipe({ transform: true })) lattes: string,
-  ): Promise<AdviseeFormatDto[]> {
-    if (!lattes) {
-      throw new Error('Lattes precisa ser informado.');
-    }
-
-    return this.professorService.getProfessorSupervisions(lattes);
-  }
-
-  @ApiResponse({
-    status: 200,
     description: 'Returns professor projects.',
     isArray: true,
     type: ProfessorProjectFinancierDto,

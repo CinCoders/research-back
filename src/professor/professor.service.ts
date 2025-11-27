@@ -126,16 +126,6 @@ export class ProfessorService {
     return result;
   }
 
-  async getProfessorSupervisions(lattes: string) {
-    const result = await AppDataSource.getRepository(Advisee)
-      .createQueryBuilder('a')
-      .innerJoin('a.professor', 'p')
-      .where('p.identifier = :identifier', { identifier: lattes })
-      .getMany();
-
-    return result;
-  }
-
   update(id: number, updateProfessorDto: UpdateProfessorDto) {
     return `This action updates a #${id} professor`;
   }
