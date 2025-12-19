@@ -1325,7 +1325,7 @@ export class ImportXmlService {
 
   renameFile = (oldPath: string, newPath: string) => {
     return new Promise((resolve, reject) => {
-      fs.rename(oldPath, newPath, (err) => {
+      fs.rename(oldPath, newPath, err => {
         if (err) {
           console.error('Error occurred during file renaming:', err);
           reject(err);
@@ -1364,7 +1364,7 @@ export class ImportXmlService {
       await queryRunner.release();
     }
 
-    this.insertDataToDatabase(files, username).catch((err) => {
+    this.insertDataToDatabase(files, username).catch(err => {
       logErrorToDatabase(err, EntityType.XML, undefined);
     });
   }

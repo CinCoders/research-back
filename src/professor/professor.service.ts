@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { AppDataSource } from 'src/app.datasource';
 import { Curriculum } from 'src/import-xml/curriculum.enum';
 import { ProfessorPatentDto } from 'src/patents/dto/professor-patent.dto';
@@ -122,6 +122,10 @@ export class ProfessorService {
       .from('professor', 'p')
       .where('p.identifier = :identifier', { identifier: lattes })
       .getRawOne();
+
+    if (!result) {
+      throw new NotFoundException('Professor not found');
+    }
 
     return result;
   }
