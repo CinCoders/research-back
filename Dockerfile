@@ -11,6 +11,9 @@ RUN npm run build
 # Using the build
 FROM node:20
 
+COPY docker-entrypoint.sh /usr/local/bin
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 USER node
 RUN mkdir /home/node/app
 WORKDIR /home/node/app
@@ -21,4 +24,5 @@ COPY package*.json ./
 
 EXPOSE 3000
 
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD [ "npm", "run", "start:prod" ]
