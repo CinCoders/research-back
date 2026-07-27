@@ -4,7 +4,7 @@ set -e
 
 cd /home/node/app
 
-if [ -f /run/secrets ]; then
+if [ -d /run/secrets ]; then
 
     cp /run/secrets/research_back_env /home/node/app/.env
 
