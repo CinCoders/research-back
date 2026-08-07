@@ -1,5 +1,5 @@
 # Building app
-FROM node:20 as build
+FROM node:20 AS build
 USER node
 RUN mkdir /home/node/app
 WORKDIR /home/node/app
