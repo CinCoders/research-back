@@ -194,7 +194,7 @@ export class ImportXmlService {
     if (extname(file.originalname) === '.zip') {
       await this.unzipFile(file);
       xmlData = await readFile(this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml', {
-        encoding: 'latin1',
+        encoding: 'utf8',
       });
     } else {
       try {
@@ -209,7 +209,7 @@ export class ImportXmlService {
       }
 
       xmlData = await readFile(this.XML_PATH + '/' + file.originalname, {
-        encoding: 'latin1',
+        encoding: 'utf8',
       });
     }
     const object = await parseStringPromise(xmlData);
@@ -1585,7 +1585,7 @@ export class ImportXmlService {
         }
       }
 
-      await this.enqueueFiles(tempFiles, username || 'atualizado automaticamente')
+      await this.enqueueFiles(tempFiles, username ?? 'Sistema')
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;
@@ -1595,7 +1595,7 @@ export class ImportXmlService {
   async importProfessorById(identifier: string, username: string): Promise<void> {
     try {
       const tempFile = await this.processProfessorData(identifier, username);
-      await this.enqueueFiles([tempFile], username || 'atualizado automaticamente');
+      await this.enqueueFiles([tempFile], username ?? 'Sistema');
     } catch (error) {
       await logErrorToDatabase(error, EntityType.IMPORT);
       throw error;
