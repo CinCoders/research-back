@@ -39,7 +39,7 @@
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/swagger": "^7.3.0",
     "@nestjs/typeorm": "^10.0.2",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.6.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
     "extract-zip": "^2.0.1",
