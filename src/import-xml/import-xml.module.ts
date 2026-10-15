@@ -6,6 +6,8 @@ import { QualisModule } from 'src/qualis/qualis.module';
 import { PublicationsModule } from 'src/publications/publications.module';
 import { PostGraduationModule } from 'src/post-graduation/post-graduation.module';
 import { ProjectsModule } from 'src/projects/projects.module';
+import { SoapModule } from 'nestjs-soap';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -15,6 +17,10 @@ import { ProjectsModule } from 'src/projects/projects.module';
     ProfessorModule,
     QualisModule,
     PublicationsModule,
+    SoapModule.register(
+      { clientName: 'LATTES_SOAP_CLIENT', uri: 'http://servicosweb.cnpq.br/srvcurriculo/WSCurriculo?wsdl' },
+    ),
+    ScheduleModule.forRoot(),
   ],
   controllers: [ImportXmlController],
   providers: [ImportXmlService],

@@ -1,7 +1,8 @@
 # compiled output
 /dist
 /node_modules
-/xml
+/xmls
+/json
 
 # Logs
 logs

@@ -1,10 +1,11 @@
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ValidationPipe } from '@nestjs/common';
 import { AppDataSource } from './app.datasource';
+import { AllExceptionsFilter } from './utils/exception-filters/catch-everything';
 
 async function bootstrap() {
   let options = {};
@@ -25,7 +26,9 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule, options);
-
+  const httpAdapterHost = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new AllExceptionsFilter(httpAdapterHost));
+  
   app.setGlobalPrefix('/research/api');
 
   app.useGlobalPipes(

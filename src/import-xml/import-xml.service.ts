@@ -1,8 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import AdmZip from 'adm-zip';
+import { Buffer } from 'buffer';
 import extract from 'extract-zip';
 import * as fs from 'fs';
-import { readdir, readFile, rename, unlink } from 'fs/promises';
-import { extname } from 'path';
+import { readdir, readFile, unlink } from 'fs/promises';
+import iconv from 'iconv-lite';
+import { Client } from 'nestjs-soap';
+import path, { extname } from 'path';
 import { AdviseeDto } from 'src/professor/dto/advisee.dto';
 import { ConferenceDto } from 'src/professor/dto/conference.dto';
 import { CreateProfessorDto } from 'src/professor/dto/create-professor.dto';
@@ -23,11 +27,14 @@ import { ConferenceService } from 'src/qualis/conference/conference.service';
 import { Conference } from 'src/qualis/entities/conference.entity';
 import { Journal } from 'src/qualis/entities/journal.entity';
 import { JournalService } from 'src/qualis/qualis.service';
+import { WsCurriculoGetCurriculoCompactado, WsCurriculoGetDataAtualizacaoCv } from 'src/soap/wscurriculo';
 import { Status } from 'src/types/enums';
 import { EntityType } from 'src/utils/exception-filters/entity-type-enum';
 import logErrorToDatabase from 'src/utils/exception-filters/log-error';
 import { Log } from 'src/utils/exception-filters/log.entity';
+import { Readable } from 'stream';
 import { QueryRunner } from 'typeorm';
+import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import { parseStringPromise } from 'xml2js';
 import { AppDataSource } from '.././app.datasource';
@@ -61,6 +68,7 @@ export class ImportXmlService {
     private readonly translationService: TranslationService,
     private readonly patentService: PatentService,
     private readonly artisticProductionService: ArtisticProductionService,
+    @Inject('LATTES_SOAP_CLIENT') private readonly lattesSoapClient: Client,
   ) {}
 
   async findAllXmlsPaginated(paginationDto: PaginationDto) {
@@ -190,7 +198,7 @@ export class ImportXmlService {
       });
     } else {
       try {
-        await rename(file.path, this.XML_PATH + '/' + file.originalname);
+        await this.renameFile(file.path, this.XML_PATH + '/' + file.originalname);
         file.path = this.XML_PATH + '/' + file.originalname;
       } catch (error) {
         if (error instanceof Error) {
@@ -1256,17 +1264,29 @@ export class ImportXmlService {
   async unzipFile(file: Express.Multer.File) {
     try {
       const zipPath = file.path;
+      const absoluteDir = path.resolve(this.XML_PATH);
+
+      let extractedXMLPath: string | null = null;
+
       await extract(zipPath, {
-        dir: this.XML_PATH,
+        dir: absoluteDir,
+        onEntry: entry => {
+          if (entry.fileName.endsWith('.xml')) {
+            extractedXMLPath = `${absoluteDir}/${file.originalname.split('.')[0]}.xml`;
+          }
+        },
       });
-      await rename(
-        this.XML_PATH + '/' + 'curriculo.xml',
-        this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml',
-      );
-      unlink(zipPath);
-      file.path = this.XML_PATH + '/' + file.originalname.split('.')[0] + '.xml';
+
+      if (!extractedXMLPath) {
+        throw new Error('Nenhum arquivo .xml encontrado no .zip.');
+      }
+
+      await unlink(zipPath);
+      file.path = extractedXMLPath;
     } catch (err) {
-      await logErrorToDatabase(err, EntityType.UNZIP, undefined);
+      console.error('Error during unzip operation:', err);
+      await logErrorToDatabase(err, EntityType.UNZIP);
+      throw err;
     }
   }
 
@@ -1284,10 +1304,10 @@ export class ImportXmlService {
     importXml.entityType = EntityType.IMPORT;
     importXml.executionContextHost = '';
     importXml.message = `Original name: ${file.originalname}
-      File name: ${file.filename}
-      Username: ${username}
-      Professor name: ${professorName}
-      Result: `;
+			File name: ${file.filename}
+			Username: ${username}
+			Professor name: ${professorName}
+			Result: `;
 
     return importXml;
   }
@@ -1323,17 +1343,22 @@ export class ImportXmlService {
     return normalizedPath;
   };
 
-  renameFile = (oldPath: string, newPath: string) => {
-    return new Promise((resolve, reject) => {
-      fs.rename(oldPath, newPath, err => {
-        if (err) {
-          console.error('Error occurred during file renaming:', err);
-          reject(err);
-        } else {
-          resolve('File renamed successfully.');
-        }
-      });
-    });
+  copyFile = promisify(fs.copyFile);
+  unlink = promisify(fs.unlink);
+
+  renameFile = async (oldPath: string, newPath: string): Promise<string> => {
+    try {
+      if (oldPath === newPath) {
+        return 'Skipped: same path.';
+      }
+
+      await this.copyFile(oldPath, newPath);
+      await this.unlink(oldPath);
+      return 'File moved successfully.';
+    } catch (err) {
+      console.error('Error occurred during file move:', err);
+      throw err;
+    }
   };
 
   async save(importXmlLog: Log) {
@@ -1386,11 +1411,8 @@ export class ImportXmlService {
           let importXmlLog = this.createImportLog(files[i], username, 'undefined');
           let professorDto: CreateProfessorDto | undefined = undefined;
           try {
-            const json = await this.parseXMLDocument(files[i]);
-
-            // se o professor não existir, criamos, se existir podemos usá-lo
+            const json = await this.parseXMLDocument(files[i]); // se o professor não existir, criamos, se existir podemos usá-lo
             professorDto = this.getProfessorData(json);
-
             const filePath = this.generateFilePath(files[i].originalname);
             try {
               // Renomeia o arquivo para o identificador do professor
@@ -1449,6 +1471,7 @@ export class ImportXmlService {
           } catch (err) {
             importXmlLog.message += 'FAILED';
             this.updateXMLStatus(files[i].filename, undefined, Status.NOT_IMPORTED, professorDto?.name);
+            console.error('Error processing file:', files[i].originalname, err);
             throw err;
           } finally {
             // Atualiza o storedXml
@@ -1463,6 +1486,119 @@ export class ImportXmlService {
       }
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  async hasProfessorUpdates(professor: Professor): Promise<boolean> {
+    const args: WsCurriculoGetDataAtualizacaoCv = { id: professor.identifier };
+
+    const [result] = await this.lattesSoapClient.getDataAtualizacaoCVAsync(args);
+    const latestUpdate = new Date(result.return);
+
+    const lastImport = await AppDataSource.createQueryBuilder()
+      .select('i')
+      .from(ImportXml, 'i')
+      .where('i.professorName = :name', { name: professor.name })
+      .orderBy('i.includedAt', 'DESC')
+      .getOne();
+
+    return !lastImport || latestUpdate > new Date(lastImport.includedAt);
+  }
+
+  async processProfessorData(identifier: string, username?: string): Promise<Express.Multer.File> {
+    if (!identifier) {
+      throw new Error('Professor identifier is undefined');
+    }
+
+    const args: WsCurriculoGetCurriculoCompactado = { id: identifier };
+    const [result] = await this.lattesSoapClient.getCurriculoCompactadoAsync(args);
+    const base64Zip = result.return;
+    const buffer = Buffer.from(base64Zip, 'base64');
+    const zip = new AdmZip(buffer);
+    const zipEntries = zip.getEntries();
+    const xmlEntry = zipEntries[0];
+    const xmlData = xmlEntry.getData();
+    const xmlContentTemp = xmlData.toString('utf-8');
+    const xmlCustomEncoding = xmlContentTemp
+      .match(/encoding="([^"]+)"/)
+      ?.at(1)
+      ?.toString();
+    const xmlContent =
+      xmlCustomEncoding && iconv.encodingExists(xmlCustomEncoding)
+        ? iconv.decode(xmlData, xmlCustomEncoding)
+        : xmlContentTemp;
+    const filePath = this.generateFilePath(identifier);
+
+    await fs.promises.mkdir(this.XML_PATH, { recursive: true });
+
+    await fs.promises.writeFile(filePath, xmlContent, 'utf-8');
+
+    const tempFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: `${identifier}.xml`,
+      encoding: '7bit',
+      mimetype: 'application/xml',
+      buffer: Buffer.from(xmlContent, 'utf-8'),
+      size: xmlContent.length,
+      destination: this.XML_PATH,
+      filename: uuidv4(),
+      path: filePath,
+      stream: new Readable(),
+    };
+
+    return tempFile;
+  }
+
+  // @Cron(CronExpression.EVERY_WEEK)
+  // async getCurriculum(): Promise<void> {
+  //   try {
+  //     const professors = await this.professorService.findAll();
+
+  //     for (const professorTableDto of professors) {
+  //       const professor = await this.professorService.findOne(undefined, professorTableDto.identifier);
+
+  //       if (!professor || !professor.identifier) continue;
+
+  //       const hasUpdates = await this.hasProfessorUpdates(professor);
+
+  //       if (hasUpdates) {
+  //         await this.processProfessorData(professor.identifier);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     await logErrorToDatabase(error, EntityType.IMPORT);
+  //   }
+  // }
+
+  async executeBackgroundProfessorsUpdate(username: string): Promise<void> {
+    try {
+      const professors = await this.professorService.findAll();
+      const tempFiles: Express.Multer.File[] = []; 
+
+      for (const { identifier, professorId } of professors) {
+        try {
+          if (!identifier) throw new Error('Professor identifier is undefined');
+
+          tempFiles.push(await this.processProfessorData(identifier, username));
+        } catch (err) {
+          await logErrorToDatabase(err, EntityType.IMPORT, String(professorId));
+        }
+      }
+
+      await this.enqueueFiles(tempFiles, username ?? 'Sistema')
+    } catch (error) {
+      await logErrorToDatabase(error, EntityType.IMPORT);
+      throw error;
+    }
+  }
+
+  async importProfessorById(identifier: string, username: string): Promise<void> {
+    try {
+      const tempFile = await this.processProfessorData(identifier, username);
+      await this.enqueueFiles([tempFile], username ?? 'Sistema');
+    } catch (error) {
+      await logErrorToDatabase(error, EntityType.IMPORT);
+      throw error;
     }
   }
 }

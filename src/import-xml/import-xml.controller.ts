@@ -1,20 +1,21 @@
 import { Controller, Get, Param, Post, Query, Res, UploadedFiles, UseInterceptors } from '@nestjs/common';
-import { ImportXmlService } from './import-xml.service';
-import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { ApiOAuth2, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { extname } from 'path';
 import { AuthenticatedUser, Roles } from 'nest-keycloak-connect';
+import { extname } from 'path';
+import { ProfessorService } from 'src/professor/professor.service';
 import { SystemRoles } from 'src/types/enums';
-import { ImportXmlDto } from './dto/import-xml.dto';
 import { Page } from '../types/page.dto';
+import { ImportXmlDto } from './dto/import-xml.dto';
+import { ImportXmlService } from './import-xml.service';
 
 @ApiTags('Import XML Module')
 @Roles({ roles: [SystemRoles.USERS] })
 @Controller('import-xml')
 @ApiOAuth2([])
 export class ImportXmlController {
-  constructor(private readonly importXmlService: ImportXmlService) {}
+  constructor(private readonly importXmlService: ImportXmlService, private readonly professorService: ProfessorService) {}
 
   @Post()
   @UseInterceptors(
@@ -70,5 +71,32 @@ export class ImportXmlController {
   async reprocessXML(@Res() res: Response, @Param('id') id: string) {
     const importedXml = await this.importXmlService.reprocessXML(id);
     return res.status(200).send(importedXml);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Imports the Lattes CVs of all professors',
+  })
+  @Post('update-all')
+  async updateProfessors(@AuthenticatedUser() user: any, @Res() res: Response) {
+    const username = `${user.name} (${user.email})`;
+    const professorsCount = await this.professorService.count();
+
+    if (professorsCount > 0) {
+      this.importXmlService.executeBackgroundProfessorsUpdate(username);
+    }
+
+    return res.status(200).json({ professorsCount });
+  }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Imports the Lattes CV of a specific professor by id',
+  })
+  @Post('professors/:id/lattes/import')
+  async importProfessorById(@AuthenticatedUser() user: any, @Res() res: Response, @Param('id') id: string) {
+    const username = `${user.name} (${user.email})`;
+    await this.importXmlService.importProfessorById(id, username);
+    return res.sendStatus(200);
   }
 }

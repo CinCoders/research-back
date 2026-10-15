@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { config } from 'dotenv';
 import { ImportXml } from './import-xml/entities/import-xml.entity';
+import { ImportJson } from './import-json/entities/import-json.entity';
 import { Advisee } from './professor/entities/advisee.entity';
 import { ConferencePublication } from './professor/entities/conference-publication.entity';
 import { Financier } from './professor/entities/financier.entity';
@@ -30,6 +31,8 @@ import { alterTableImportXml1705606892154 } from './database/migrations/17056068
 import { Translation } from './professor/entities/translation.entity';
 import { CreateTranslationAlterConferencePublication1706292498583 } from './database/migrations/1706292498583-createTranslationAlterConferencePublication';
 import { AlterConferencePubAndJournalPubAndBook1706298287607 } from './database/migrations/1706298287607-alterConferencePubAndJournalPubAndBook';
+import { ImportJson1752008569765 } from './database/migrations/1752008569765-ImportJson';
+
 
 config();
 
@@ -46,6 +49,7 @@ export const AppDataSource = new DataSource({
   logging: false,
   entities: [
     ImportXml,
+    ImportJson,
     Advisee,
     ConferencePublication,
     Financier,
@@ -76,5 +80,6 @@ export const AppDataSource = new DataSource({
     alterTableImportXml1705606892154,
     CreateTranslationAlterConferencePublication1706292498583,
     AlterConferencePubAndJournalPubAndBook1706298287607,
+    ImportJson1752008569765,
   ],
 });

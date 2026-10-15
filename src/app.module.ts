@@ -19,6 +19,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AppDataSource } from './app.datasource';
 import { ScholarshipModule } from './scholarship/scholarship.module';
 import { PatentsModule } from './patents/patents.module';
+import { ImportJsonModule } from './import-json/import-json.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { PatentsModule } from './patents/patents.module';
     }),
     ScholarshipModule,
     PatentsModule,
+    ImportJsonModule,
   ],
   controllers: [],
   providers: [
