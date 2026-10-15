@@ -22,6 +22,7 @@ import { ProfessorPublicationsDto } from './dto/professor-publications.dto';
 import { ProfessorTableDto } from './dto/professor-table.dto';
 import { Professor } from './entities/professor.entity';
 import { ProfessorService } from './professor.service';
+import { ExecutedActivitiesDto } from './dto/executed-activities.dto';
 
 @ApiTags('Professor Module')
 @Controller('professors')
@@ -120,6 +121,19 @@ export class ProfessorController {
   @Get('patents')
   getPatents(@Query() { id, lattes }: IdentifierQueryParamsDTO): Promise<ProfessorPatentDto[]> {
     return this.professorService.getPatents(id, lattes);
+  }
+
+  @ApiResponse({
+    status: 200,
+    description: 'Returns activities the professor executed.',
+    isArray: false,
+    type: ExecutedActivitiesDto,
+  })
+  @ApiResponse({ status: 404, description: 'Professor was not found' })
+  @Roles({ roles: [SystemRoles.USERS] })
+  @Get('executed-activities')
+  getExecutedActivities(@Query('lattes') lattes: string): Promise<ExecutedActivitiesDto> {
+    return this.professorService.getExecutedActivities(lattes);
   }
 
   @ApiResponse({

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { AppDataSource } from 'src/app.datasource';
 import { Curriculum } from 'src/import-xml/curriculum.enum';
 import { ProfessorPatentDto } from 'src/patents/dto/professor-patent.dto';
@@ -97,6 +97,38 @@ export class ProfessorService {
     }
 
     const result = await query.getOne();
+    return result;
+  }
+
+  async getExecutedActivities(lattes: string) {
+    const result = await AppDataSource.createQueryBuilder()
+      .select([
+        `CASE WHEN EXISTS (
+      SELECT 1 FROM "project" pr WHERE pr.professor_id = p.id
+    ) THEN true ELSE false END AS projects`,
+
+        `CASE WHEN EXISTS (
+      SELECT 1 FROM "conference_publication" cp WHERE cp.professor_id = p.id
+    ) OR EXISTS (
+      SELECT 1 FROM "journal_publication" jp WHERE jp.professor_id = p.id
+    ) THEN true ELSE false END AS publications`,
+
+        `CASE WHEN EXISTS (
+      SELECT 1 FROM "advisee" a WHERE a.professor_id = p.id
+    ) THEN true ELSE false END AS supervisions`,
+
+        `CASE WHEN EXISTS (
+      SELECT 1 FROM "patent" pt WHERE pt.professor_id = p.id
+    ) THEN true ELSE false END AS patents`,
+      ])
+      .from('professor', 'p')
+      .where('p.identifier = :identifier', { identifier: lattes })
+      .getRawOne();
+
+    if (!result) {
+      throw new NotFoundException('Professor not found');
+    }
+
     return result;
   }
 
